@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Depends, Request, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
@@ -8,25 +8,22 @@ from pydantic import BaseModel
 from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 
-# --- Configuration ---
-# These will be set in Render's environment variables
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local_test.db") 
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-session-key")
-ALLOWED_EMAIL = "beringuelajirocordial@gmail.com" # Change this to your email
-
-# --- Database Setup ---
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 class LogEntry(Base):
-    __tablename__ = "dtr_logs"
+    __tablename__ = "dtr_logs_v2" # Version 2 forces a fresh multi-user table
     id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String, index=True) # Tracks who owns the log
     date = Column(String, index=True)
     time_in = Column(String)
     time_out = Column(String)
@@ -34,7 +31,6 @@ class LogEntry(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# --- FastAPI App & OAuth Setup ---
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -61,32 +57,21 @@ class LogCreate(BaseModel):
     time_out: str
     hours: float
 
-# --- Authentication Dependency ---
 def get_current_user(request: Request):
     user = request.session.get('user')
-    if not user or user.get('email') != ALLOWED_EMAIL:
+    if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     return user
 
-# --- Routes ---
+# --- View Routes ---
 @app.get("/")
 def read_root(request: Request):
     user = request.session.get('user')
     if not user:
-        return HTMLResponse(
-            """
-            <div style="display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; background:#f8fafc;">
-                <div style="background:white; padding:40px; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1); text-align:center;">
-                    <h2>Practicum DTR System</h2>
-                    <a href="/login" style="background:#2563eb; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; display:inline-block; margin-top:20px;">Sign in with Google</a>
-                </div>
-            </div>
-            """
-        )
-    # If logged in, load the main app
-    with open("static/index.html", "r") as f:
-        return HTMLResponse(f.read())
+        return FileResponse("static/landing.html")
+    return FileResponse("static/dashboard.html")
 
+# --- Auth Routes ---
 @app.get('/login')
 async def login(request: Request):
     redirect_uri = request.url_for('auth')
@@ -95,11 +80,8 @@ async def login(request: Request):
 @app.get('/auth/callback')
 async def auth(request: Request):
     token = await oauth.google.authorize_access_token(request)
-    user = token.get('userinfo')
-    if user and user.get('email') == ALLOWED_EMAIL:
-        request.session['user'] = user
-        return RedirectResponse(url='/')
-    return HTMLResponse("Unauthorized Email Address.", status_code=401)
+    request.session['user'] = token.get('userinfo')
+    return RedirectResponse(url='/')
 
 @app.get('/logout')
 def logout(request: Request):
@@ -109,13 +91,20 @@ def logout(request: Request):
 # --- API Endpoints ---
 @app.get("/api/logs")
 def get_logs(request: Request, db: Session = Depends(get_db)):
-    get_current_user(request) # Protect route
-    return db.query(LogEntry).order_by(LogEntry.date).all()
+    user = get_current_user(request)
+    # Only return logs belonging to the logged-in email
+    return db.query(LogEntry).filter(LogEntry.user_email == user['email']).order_by(LogEntry.date).all()
 
 @app.post("/api/logs")
 def add_log(log: LogCreate, request: Request, db: Session = Depends(get_db)):
-    get_current_user(request)
-    new_log = LogEntry(date=log.date, time_in=log.time_in, time_out=log.time_out, hours=log.hours)
+    user = get_current_user(request)
+    new_log = LogEntry(
+        user_email=user['email'], 
+        date=log.date, 
+        time_in=log.time_in, 
+        time_out=log.time_out, 
+        hours=log.hours
+    )
     db.add(new_log)
     db.commit()
     db.refresh(new_log)
@@ -123,7 +112,12 @@ def add_log(log: LogCreate, request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/logs/{log_id}")
 def delete_log(log_id: int, request: Request, db: Session = Depends(get_db)):
-    get_current_user(request)
-    db.query(LogEntry).filter(LogEntry.id == log_id).delete()
+    user = get_current_user(request)
+    # Ensure users can only delete their own logs
+    db.query(LogEntry).filter(LogEntry.id == log_id, LogEntry.user_email == user['email']).delete()
     db.commit()
     return {"message": "Log deleted"}
+
+@app.get("/api/user")
+def get_user(request: Request):
+    return get_current_user(request)

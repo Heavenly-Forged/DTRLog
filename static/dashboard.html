@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DTR Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; }
+            .print-container { max-width: 100% !important; padding: 0 !important; box-shadow: none !important; }
+            .dtr-page { page-break-inside: avoid; page-break-after: always; padding: 0; margin: 0; }
+            .dtr-page:last-child { page-break-after: auto; }
+            table { font-size: 12px; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-4 md:p-8">
+
+<div class="max-w-5xl mx-auto print-container">
+    
+    <!-- Top Nav -->
+    <div class="flex justify-between items-center mb-8 no-print glass-panel p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-3">
+            <img id="userAvatar" class="w-10 h-10 rounded-full bg-slate-200" src="" alt="Avatar">
+            <div>
+                <div class="font-bold text-sm" id="userName">Loading...</div>
+                <div class="text-xs text-slate-500">IT Administration Intern</div>
+            </div>
+        </div>
+        <a href="/logout" class="text-sm font-semibold text-slate-500 hover:text-red-500 transition-colors">Log out</a>
+    </div>
+
+    <!-- Data Entry Form -->
+    <div class="no-print glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 transition-all hover:shadow-md">
+        <h2 class="font-bold text-lg mb-4">Log Biometrics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input type="date" id="dateInput" class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+            <input type="time" id="timeInInput" class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+            <input type="time" id="timeOutInput" class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+            <button onclick="addLog()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-3 rounded-xl transition-all active:scale-95 shadow-md hover:shadow-lg">
+                Save Record
+            </button>
+        </div>
+    </div>
+
+    <div class="flex justify-end mb-4 no-print">
+        <button onclick="window.print()" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-6 rounded-xl transition-all active:scale-95 shadow-md flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print / Save PDF
+        </button>
+    </div>
+
+    <!-- Paginated Report -->
+    <div id="report-container" class="bg-white rounded-2xl md:p-8"></div>
+</div>
+
+<script>
+    let currentUserName = "Intern Name";
+
+    async function loadUserData() {
+        const res = await fetch('/api/user');
+        if(res.ok) {
+            const user = await res.json();
+            currentUserName = user.name;
+            document.getElementById('userName').innerText = user.name;
+            document.getElementById('userAvatar').src = user.picture;
+        }
+    }
+
+    function calculateHours(timeIn, timeOut) {
+        const [inH, inM] = timeIn.split(':');
+        const [outH, outM] = timeOut.split(':');
+        let dIn = new Date(2000, 0, 1, inH, inM);
+        let dOut = new Date(2000, 0, 1, outH, outM);
+        if (dOut < dIn) dOut.setDate(dOut.getDate() + 1);
+        return ((dOut - dIn) / (1000 * 60 * 60)).toFixed(2);
+    }
+
+    async function fetchLogs() {
+        const res = await fetch('/api/logs');
+        if (res.status === 401) window.location.href = '/';
+        const logs = await res.json();
+        renderPaginatedReport(logs);
+    }
+
+    async function addLog() {
+        const date = document.getElementById('dateInput').value;
+        const timeIn = document.getElementById('timeInInput').value;
+        const timeOut = document.getElementById('timeOutInput').value;
+        if (!date || !timeIn || !timeOut) return;
+        
+        await fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, time_in: timeIn, time_out: timeOut, hours: parseFloat(calculateHours(timeIn, timeOut)) })
+        });
+        fetchLogs();
+    }
+
+    async function deleteLog(id) {
+        if(confirm('Delete this record?')) {
+            await fetch(`/api/logs/${id}`, { method: 'DELETE' });
+            fetchLogs();
+        }
+    }
+
+    function renderPaginatedReport(logs) {
+        const container = document.getElementById('report-container');
+        container.innerHTML = '';
+        
+        const CHUNK_SIZE = 7; 
+        for (let i = 0; i < logs.length; i += CHUNK_SIZE) {
+            const chunk = logs.slice(i, i + CHUNK_SIZE);
+            let total = 0;
+            let rows = chunk.map(log => {
+                total += log.hours;
+                return `<tr class="border-b border-slate-200 hover:bg-slate-50">
+                    <td class="p-3 text-center border-x border-slate-200">${log.date}</td>
+                    <td class="p-3 text-center border-x border-slate-200">${log.time_in}</td>
+                    <td class="p-3 text-center border-x border-slate-200">${log.time_out}</td>
+                    <td class="p-3 text-center border-x border-slate-200 font-semibold">${log.hours.toFixed(2)}</td>
+                    <td class="p-3 text-center no-print border-x border-slate-200">
+                        <button onclick="deleteLog(${log.id})" class="text-slate-400 hover:text-red-500 transition-colors">✕</button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            const page = document.createElement('div');
+            page.className = 'dtr-page mb-16';
+            page.innerHTML = `
+                <div class="text-center mb-8">
+                    <div class="text-xl font-bold uppercase tracking-wide" contenteditable="true">Philippine Spark Security Infoplant Corp</div>
+                    <div class="text-slate-500 mt-1">Daily Time Record</div>
+                </div>
+                <table class="w-full border-collapse border border-slate-300 mb-10">
+                    <thead>
+                        <tr class="bg-slate-100">
+                            <th class="p-3 border border-slate-300">Date</th>
+                            <th class="p-3 border border-slate-300">Time In</th>
+                            <th class="p-3 border border-slate-300">Time Out</th>
+                            <th class="p-3 border border-slate-300">Hours</th>
+                            <th class="p-3 border border-slate-300 no-print">Act</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>
+                        <tr class="bg-slate-50">
+                            <th colspan="3" class="p-3 text-right border border-slate-300 font-bold">Total Hours:</th>
+                            <th colspan="2" class="p-3 text-left border border-slate-300 text-lg font-bold text-blue-600">${total.toFixed(2)}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="flex justify-between mt-12 px-8">
+                    <div class="w-2/5 text-center">
+                        <div class="border-t border-slate-800 pt-2 font-bold">${currentUserName}</div>
+                        <div class="text-sm text-slate-500">IT Intern</div>
+                    </div>
+                    <div class="w-2/5 text-center">
+                        <div class="border-t border-slate-800 pt-2 font-bold" contenteditable="true">Click to Edit Supervisor Name</div>
+                        <div class="text-sm text-slate-500">IT Admin Supervisor</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(page);
+        }
+    }
+
+    window.onload = () => { loadUserData().then(fetchLogs); };
+</script>
+</body>
+</html>
