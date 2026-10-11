@@ -119,6 +119,22 @@ def delete_log(log_id: int, request: Request, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Log deleted"}
 
+@app.put("/api/logs/{log_id}")
+def update_log(log_id: int, log: LogCreate, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    db_log = db.query(LogEntry).filter(LogEntry.id == log_id, LogEntry.user_email == user['email']).first()
+    if not db_log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    
+    db_log.week_label = log.week_label
+    db_log.date = log.date
+    db_log.time_in = log.time_in
+    db_log.time_out = log.time_out
+    db_log.lunch_hours = log.lunch_hours
+    db_log.hours = log.hours
+    db.commit()
+    return {"message": "Log updated"}
+
 @app.get("/api/user")
 def get_user(request: Request):
     return get_current_user(request)
