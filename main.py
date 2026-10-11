@@ -21,9 +21,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 class LogEntry(Base):
-    __tablename__ = "dtr_logs_v2" # Version 2 forces a fresh multi-user table
+    __tablename__ = "dtr_logs_v3" 
     id = Column(Integer, primary_key=True, index=True)
-    user_email = Column(String, index=True) # Tracks who owns the log
+    user_email = Column(String, index=True) 
+    week_label = Column(String, index=True) # Added to support custom week names
     date = Column(String, index=True)
     time_in = Column(String)
     time_out = Column(String)
@@ -52,6 +53,7 @@ def get_db():
         db.close()
 
 class LogCreate(BaseModel):
+    week_label: str
     date: str
     time_in: str
     time_out: str
@@ -63,7 +65,6 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     return user
 
-# --- View Routes ---
 @app.get("/")
 def read_root(request: Request):
     user = request.session.get('user')
@@ -71,7 +72,6 @@ def read_root(request: Request):
         return FileResponse("static/landing.html")
     return FileResponse("static/dashboard.html")
 
-# --- Auth Routes ---
 @app.get('/login')
 async def login(request: Request):
     redirect_uri = request.url_for('auth')
@@ -88,11 +88,9 @@ def logout(request: Request):
     request.session.pop('user', None)
     return RedirectResponse(url='/')
 
-# --- API Endpoints ---
 @app.get("/api/logs")
 def get_logs(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
-    # Only return logs belonging to the logged-in email
     return db.query(LogEntry).filter(LogEntry.user_email == user['email']).order_by(LogEntry.date).all()
 
 @app.post("/api/logs")
@@ -100,6 +98,7 @@ def add_log(log: LogCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
     new_log = LogEntry(
         user_email=user['email'], 
+        week_label=log.week_label,
         date=log.date, 
         time_in=log.time_in, 
         time_out=log.time_out, 
@@ -113,7 +112,6 @@ def add_log(log: LogCreate, request: Request, db: Session = Depends(get_db)):
 @app.delete("/api/logs/{log_id}")
 def delete_log(log_id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
-    # Ensure users can only delete their own logs
     db.query(LogEntry).filter(LogEntry.id == log_id, LogEntry.user_email == user['email']).delete()
     db.commit()
     return {"message": "Log deleted"}
