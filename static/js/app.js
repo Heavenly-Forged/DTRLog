@@ -31,6 +31,17 @@ let allLogs = [];
 let groupedLogs = {};
 let activeDeleteId = null;
 
+// --- UTILITY: FORMAT HOURS & MINUTES ---
+function formatHM(decimalHours) {
+    const num = parseFloat(decimalHours);
+    if (isNaN(num) || num <= 0) return "0h 0m";
+    const h = Math.floor(num);
+    const m = Math.round((num - h) * 60);
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+}
+
 // --- INITIALIZE PICKERS & UI ---
 flatpickr(".flatpickr-date", { altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" });
 const timeConfig = { enableTime: true, noCalendar: true, dateFormat: "h:i K", time_24hr: false };
@@ -196,11 +207,9 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (dOut < dIn) dOut.setDate(dOut.getDate() + 1);
     if (dShiftEnd < dShiftStart) dShiftEnd.setDate(dShiftEnd.getDate() + 1);
 
-    // Hardcap logic: Trim excess time falling outside standard shift bounds
     if (dIn < dShiftStart) dIn = dShiftStart;
     if (dOut > dShiftEnd) dOut = dShiftEnd;
 
-    // Prevent negative output if an entire log happens outside the shift window
     if (dOut <= dIn) return "0.00";
     
     let diffHours = ((dOut - dIn) / (1000 * 60 * 60)) - (lunchMins / 60);
@@ -233,14 +242,14 @@ function updateProgressTracker() {
     if (percentEl) percentEl.innerText = `${Math.round(percent)}%`;
     
     const hrsEl = document.getElementById('progressHours');
-    if (hrsEl) hrsEl.innerText = totalHours.toFixed(1);
+    if (hrsEl) hrsEl.innerText = formatHM(totalHours);
     
     const targetEl = document.getElementById('progressTarget');
-    if (targetEl) targetEl.innerText = target > 0 ? target : "0";
+    if (targetEl) targetEl.innerText = target > 0 ? `${target}h` : "0h";
     
     const remainingEl = document.getElementById('progressRemaining');
     if (remainingEl) {
-        remainingEl.innerText = target > 0 ? `${remaining.toFixed(1)}h remaining` : `Set target to calculate`;
+        remainingEl.innerText = target > 0 ? `${formatHM(remaining)} remaining` : `Set target to calculate`;
     }
     
     const barEl = document.getElementById('linearProgressBar');
@@ -298,7 +307,7 @@ function renderDashboard() {
             wTotal += netHrs;
             
             const isNa = log.time_in === "N/A";
-            const hrsDisplay = isNa ? `<span class="text-slate-400 dark:text-slate-500">N/A</span>` : `<span class="font-bold text-blue-600 dark:text-blue-400">${netHrs.toFixed(2)}</span>`;
+            const hrsDisplay = isNa ? `<span class="text-slate-400 dark:text-slate-500">N/A</span>` : `<span class="font-bold text-blue-600 dark:text-blue-400">${formatHM(netHrs)}</span>`;
             const lunchDisplay = isNa ? `-` : `${(log.lunch_hours || 0) * 60}m`;
             
             html += `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -315,7 +324,7 @@ function renderDashboard() {
         html += `</tbody></table></div>
             <div class="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-sm">
                 <span class="font-semibold text-slate-600 dark:text-slate-400">Weekly Total (Net)</span>
-                <span class="font-bold text-lg text-slate-900 dark:text-white">${wTotal.toFixed(2)} Hrs</span>
+                <span class="font-bold text-lg text-slate-900 dark:text-white">${formatHM(wTotal)}</span>
             </div>
         </div>`;
         container.innerHTML += html;
@@ -432,13 +441,13 @@ function executePrint() {
                 const netHrs = parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60));
                 total += netHrs;
                 const isNa = log.time_in === "N/A";
-                const hrsDisplay = isNa ? "N/A" : netHrs.toFixed(2);
+                const hrsDisplay = isNa ? "N/A" : formatHM(netHrs);
                 const lunchDisplay = isNa ? "-" : `${(log.lunch_hours || 0) * 60}m`;
                 html += `<tr><td>${log.date}</td><td>${log.time_in}</td><td>${log.time_out}</td><td>${lunchDisplay}</td><td>${hrsDisplay}</td></tr>`;
             });
             
             html += `</tbody>
-                    <tfoot><tr class="total-row"><th colspan="4" style="text-align: right; padding-right: 20px;">Total for ${week}:</th><th>${total.toFixed(2)}</th></tr></tfoot>
+                    <tfoot><tr class="total-row"><th colspan="4" style="text-align: right; padding-right: 20px;">Total for ${week}:</th><th>${formatHM(total)}</th></tr></tfoot>
                 </table>
             </div>`;
             container.innerHTML += html;
