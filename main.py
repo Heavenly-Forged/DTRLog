@@ -21,13 +21,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 class LogEntry(Base):
-    __tablename__ = "dtr_logs_v3" 
+    __tablename__ = "dtr_logs_v4" 
     id = Column(Integer, primary_key=True, index=True)
     user_email = Column(String, index=True) 
-    week_label = Column(String, index=True) # Added to support custom week names
+    week_label = Column(String, index=True)
     date = Column(String, index=True)
     time_in = Column(String)
     time_out = Column(String)
+    lunch_hours = Column(Float, default=0.0)
     hours = Column(Float)
 
 Base.metadata.create_all(bind=engine)
@@ -57,6 +58,7 @@ class LogCreate(BaseModel):
     date: str
     time_in: str
     time_out: str
+    lunch_hours: float
     hours: float
 
 def get_current_user(request: Request):
@@ -102,6 +104,7 @@ def add_log(log: LogCreate, request: Request, db: Session = Depends(get_db)):
         date=log.date, 
         time_in=log.time_in, 
         time_out=log.time_out, 
+        lunch_hours=log.lunch_hours,
         hours=log.hours
     )
     db.add(new_log)
