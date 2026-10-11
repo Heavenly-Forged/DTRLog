@@ -152,11 +152,21 @@
         <div class="space-y-4 mb-6">
             <div>
                 <label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide block mb-1">Your Full Name</label>
-                <input type="text" id="onboardName" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-2 focus:ring-blue-600 outline-none">
+                <input type="text" id="onboardName" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-600 outline-none">
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide block mb-1">Your Position / Title</label>
-                <input type="text" id="onboardTitle" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-2 focus:ring-blue-600 outline-none" placeholder="e.g., Project Manager">
+                <input type="text" id="onboardTitle" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-600 outline-none" placeholder="e.g., Project Manager">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide block mb-1">Standard Shift Start</label>
+                    <input type="text" id="onboardShiftStart" class="flatpickr-time w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-600 outline-none" placeholder="07:30 AM">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide block mb-1">Standard Shift End</label>
+                    <input type="text" id="onboardShiftEnd" class="flatpickr-time w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-600 outline-none" placeholder="06:30 PM">
+                </div>
             </div>
         </div>
         <button onclick="saveOnboarding()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg">Save Profile</button>

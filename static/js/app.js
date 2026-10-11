@@ -14,13 +14,14 @@ function setTheme(theme) {
             document.documentElement.classList.remove('dark');
         }
     }
+    if (typeof updateProgressTracker === 'function') updateProgressTracker();
 }
 
-// Listen for system theme changes
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     if (!('theme' in localStorage)) {
         if (e.matches) { document.documentElement.classList.add('dark'); } 
         else { document.documentElement.classList.remove('dark'); }
+        if (typeof updateProgressTracker === 'function') updateProgressTracker();
     }
 });
 
@@ -49,7 +50,7 @@ if (batchContainer) {
     flatpickr(".flatpickr-time", timeConfig);
 }
 
-// --- PROFILE MANAGEMENT ---
+// --- PROFILE & SHIFT MANAGEMENT ---
 function checkOnboarding(googleName) {
     const savedName = localStorage.getItem('dtr_intern_name');
     if (!savedName) {
@@ -63,6 +64,8 @@ function checkOnboarding(googleName) {
 function openEditProfile() {
     document.getElementById('onboardName').value = localStorage.getItem('dtr_intern_name') || googleProfileName;
     document.getElementById('onboardTitle').value = localStorage.getItem('dtr_intern_title') || "Project Manager";
+    document.getElementById('onboardShiftStart').value = localStorage.getItem('dtr_shift_start') || "07:30 AM";
+    document.getElementById('onboardShiftEnd').value = localStorage.getItem('dtr_shift_end') || "06:30 PM";
     document.getElementById('onboardModalTitle').innerText = "Edit Profile";
     document.getElementById('onboardCloseBtn').classList.remove('hidden');
     toggleModal('onboardingModal');
@@ -71,12 +74,21 @@ function openEditProfile() {
 function saveOnboarding() {
     const name = document.getElementById('onboardName').value || googleProfileName;
     const title = document.getElementById('onboardTitle').value || "Project Manager";
+    const shiftStart = document.getElementById('onboardShiftStart').value || "07:30 AM";
+    const shiftEnd = document.getElementById('onboardShiftEnd').value || "06:30 PM";
     
     localStorage.setItem('dtr_intern_name', name);
     localStorage.setItem('dtr_intern_title', title);
+    localStorage.setItem('dtr_shift_start', shiftStart);
+    localStorage.setItem('dtr_shift_end', shiftEnd);
     
     applyInternProfile(name, title);
     toggleModal('onboardingModal');
+    
+    if (allLogs.length > 0) {
+        renderDashboard();
+        updateProgressTracker();
+    }
 }
 
 function applyInternProfile(name, title) {
@@ -86,7 +98,7 @@ function applyInternProfile(name, title) {
     if (document.getElementById('printInternTitle')) document.getElementById('printInternTitle').innerText = title;
 }
 
-// --- MODALS ---
+// --- MODALS & UI ---
 function toggleModal(id) {
     const modal = document.getElementById(id);
     if (!modal) return;
@@ -111,7 +123,6 @@ function toggleSingleNA() {
     if (isNa) { inInput.value = ""; outInput.value = ""; lunchInput.value = "0"; }
 }
 
-// --- LOGO HANDLING ---
 function updateLogoIndicator() {
     const label = document.getElementById('logoUploadLabel');
     const removeBtn = document.getElementById('removeLogoBtn');
@@ -139,7 +150,6 @@ function handleLogoUpload(event) {
 
 function removeLogo() {
     localStorage.removeItem('dtr_logo');
-    
     const printLogo = document.getElementById('printLogo');
     if (printLogo) { printLogo.src = ''; printLogo.style.display = 'none'; }
     
@@ -151,15 +161,13 @@ function removeLogo() {
         label.classList.replace('dark:text-emerald-400', 'dark:text-slate-200');
         label.innerHTML = `<span>Upload Logo</span><input type="file" id="logoUpload" class="hidden" accept="image/*" onchange="handleLogoUpload(event)">`;
     }
-    
     const removeBtn = document.getElementById('removeLogoBtn');
     if (removeBtn) removeBtn.classList.add('hidden');
-    
     const fileInput = document.getElementById('logoUpload');
     if (fileInput) fileInput.value = '';
 }
 
-// --- TIME LOGIC ---
+// --- DYNAMIC BOUNDARY TIME LOGIC ---
 function parseTimeAMPM(timeStr) {
     if (!timeStr || timeStr === "N/A") return null;
     const [time, modifier] = timeStr.split(' ');
@@ -172,16 +180,78 @@ function parseTimeAMPM(timeStr) {
 
 function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (timeIn === "N/A" || timeOut === "N/A") return 0;
+    
     const inT = parseTimeAMPM(timeIn);
     const outT = parseTimeAMPM(timeOut);
+    const shiftStartT = parseTimeAMPM(localStorage.getItem('dtr_shift_start') || "07:30 AM");
+    const shiftEndT = parseTimeAMPM(localStorage.getItem('dtr_shift_end') || "06:30 PM");
+
     if (!inT || !outT) return 0;
     
     let dIn = new Date(2000, 0, 1, inT.h, inT.m);
     let dOut = new Date(2000, 0, 1, outT.h, outT.m);
+    const dShiftStart = new Date(2000, 0, 1, shiftStartT.h, shiftStartT.m);
+    const dShiftEnd = new Date(2000, 0, 1, shiftEndT.h, shiftEndT.m);
+    
     if (dOut < dIn) dOut.setDate(dOut.getDate() + 1);
+    if (dShiftEnd < dShiftStart) dShiftEnd.setDate(dShiftEnd.getDate() + 1);
+
+    // Hardcap logic: Trim excess time falling outside standard shift bounds
+    if (dIn < dShiftStart) dIn = dShiftStart;
+    if (dOut > dShiftEnd) dOut = dShiftEnd;
+
+    // Prevent negative output if an entire log happens outside the shift window
+    if (dOut <= dIn) return "0.00";
     
     let diffHours = ((dOut - dIn) / (1000 * 60 * 60)) - (lunchMins / 60);
     return Math.max(0, diffHours).toFixed(2);
+}
+
+// --- PROGRESS TRACKER ---
+function updateProgressTracker() {
+    const targetInput = document.getElementById('targetHoursInput');
+    if (!targetInput) return;
+    
+    localStorage.setItem('dtr_target_hours', targetInput.value);
+    let target = parseFloat(targetInput.value);
+    if (isNaN(target) || target < 0) target = 0;
+    
+    let totalHours = 0;
+    allLogs.forEach(log => { 
+        totalHours += parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60)); 
+    });
+    
+    let percent = 0;
+    let remaining = 0;
+    
+    if (target > 0) {
+        percent = Math.min(100, Math.max(0, (totalHours / target) * 100));
+        remaining = Math.max(0, target - totalHours);
+    }
+    
+    const percentEl = document.getElementById('progressPercent');
+    if (percentEl) percentEl.innerText = `${Math.round(percent)}%`;
+    
+    const hrsEl = document.getElementById('progressHours');
+    if (hrsEl) hrsEl.innerText = totalHours.toFixed(1);
+    
+    const targetEl = document.getElementById('progressTarget');
+    if (targetEl) targetEl.innerText = target > 0 ? target : "0";
+    
+    const remainingEl = document.getElementById('progressRemaining');
+    if (remainingEl) {
+        remainingEl.innerText = target > 0 ? `${remaining.toFixed(1)}h remaining` : `Set target to calculate`;
+    }
+    
+    const barEl = document.getElementById('linearProgressBar');
+    if (barEl) barEl.style.width = `${percent}%`;
+    
+    const wrapEl = document.getElementById('circularProgressWrapper');
+    if (wrapEl) {
+        const isDark = document.documentElement.classList.contains('dark');
+        const emptyColor = isDark ? '#334155' : '#e2e8f0'; 
+        wrapEl.style.background = `conic-gradient(#10b981 ${percent}%, ${emptyColor} ${percent}%)`;
+    }
 }
 
 // --- API FETCH & RENDER ---
@@ -199,6 +269,7 @@ async function fetchLogs() {
         });
         
         renderDashboard();
+        updateProgressTracker();
     } catch (e) {
         console.error("Failed to fetch logs", e);
     }
@@ -210,7 +281,7 @@ function renderDashboard() {
     container.innerHTML = '';
     
     Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).forEach(week => {
-        let html = `<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        let html = `<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
             <div class="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-white">${week}</h3>
             </div>
@@ -223,9 +294,11 @@ function renderDashboard() {
         
         let wTotal = 0;
         groupedLogs[week].forEach(log => {
-            wTotal += log.hours;
+            const netHrs = parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60));
+            wTotal += netHrs;
+            
             const isNa = log.time_in === "N/A";
-            const hrsDisplay = isNa ? `<span class="text-slate-400 dark:text-slate-500">N/A</span>` : `<span class="font-bold text-blue-600 dark:text-blue-400">${log.hours.toFixed(2)}</span>`;
+            const hrsDisplay = isNa ? `<span class="text-slate-400 dark:text-slate-500">N/A</span>` : `<span class="font-bold text-blue-600 dark:text-blue-400">${netHrs.toFixed(2)}</span>`;
             const lunchDisplay = isNa ? `-` : `${(log.lunch_hours || 0) * 60}m`;
             
             html += `<tr class="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -315,53 +388,6 @@ if (delBtn) {
     });
 }
 
-// --- PROGRESS TRACKER ---
-function updateProgressTracker() {
-    const targetInput = document.getElementById('targetHoursInput');
-    if (!targetInput) return;
-    
-    // Save exactly what the user types (even if it's empty)
-    localStorage.setItem('dtr_target_hours', targetInput.value);
-    
-    let target = parseFloat(targetInput.value);
-    if (isNaN(target) || target < 0) target = 0;
-    
-    let totalHours = 0;
-    allLogs.forEach(log => { totalHours += (log.hours || 0); });
-    
-    let percent = 0;
-    let remaining = 0;
-    
-    if (target > 0) {
-        percent = Math.min(100, Math.max(0, (totalHours / target) * 100));
-        remaining = Math.max(0, target - totalHours);
-    }
-    
-    // Update Text
-    document.getElementById('progressPercent').innerText = `${Math.round(percent)}%`;
-    document.getElementById('progressHours').innerText = totalHours.toFixed(1);
-    document.getElementById('progressTarget').innerText = target > 0 ? target : "0";
-    
-    if (target > 0) {
-        document.getElementById('progressRemaining').innerText = `${remaining.toFixed(1)}h remaining`;
-    } else {
-        document.getElementById('progressRemaining').innerText = `Set target to calculate`;
-    }
-    
-    // Update Bars
-    document.getElementById('linearProgressBar').style.width = `${percent}%`;
-    
-    const isDark = document.documentElement.classList.contains('dark');
-    const emptyColor = isDark ? '#334155' : '#e2e8f0'; 
-    document.getElementById('circularProgressWrapper').style.background = `conic-gradient(#10b981 ${percent}%, ${emptyColor} ${percent}%)`;
-}
-
-// Update this block near the bottom of window.onload:
-    const targetInput = document.getElementById('targetHoursInput');
-    if (targetInput) {
-        targetInput.value = localStorage.getItem('dtr_target_hours') || "";
-    }
-
 // --- PRINTING ---
 function populatePrintCheckboxes() {
     const container = document.getElementById('weekCheckboxes');
@@ -403,9 +429,10 @@ function executePrint() {
             
             let total = 0;
             logs.forEach(log => {
-                total += log.hours;
+                const netHrs = parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60));
+                total += netHrs;
                 const isNa = log.time_in === "N/A";
-                const hrsDisplay = isNa ? "N/A" : log.hours.toFixed(2);
+                const hrsDisplay = isNa ? "N/A" : netHrs.toFixed(2);
                 const lunchDisplay = isNa ? "-" : `${(log.lunch_hours || 0) * 60}m`;
                 html += `<tr><td>${log.date}</td><td>${log.time_in}</td><td>${log.time_out}</td><td>${lunchDisplay}</td><td>${hrsDisplay}</td></tr>`;
             });
@@ -440,17 +467,19 @@ window.onload = async () => {
         console.error("Auth skipped or failed:", e);
     }
     
+    const targetInput = document.getElementById('targetHoursInput');
+    if (targetInput) targetInput.value = localStorage.getItem('dtr_target_hours') || "";
+
     if (document.getElementById('dashboard-views')) fetchLogs();
     
     const savedLogo = localStorage.getItem('dtr_logo');
     if (savedLogo) {
         const printLogo = document.getElementById('printLogo');
         if (printLogo) { printLogo.src = savedLogo; printLogo.style.display = 'block'; }
-        updateLogoIndicator(); // Shows the remove button if a logo exists on load
+        updateLogoIndicator(); 
     }
     
     if (document.getElementById('inputCompName')) document.getElementById('inputCompName').value = localStorage.getItem('dtr_comp') || "Company Name";
     if (document.getElementById('inputSupName')) document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
     if (document.getElementById('inputSupTitle')) document.getElementById('inputSupTitle').value = localStorage.getItem('dtr_title') || "Supervisor Title";
 };
-
