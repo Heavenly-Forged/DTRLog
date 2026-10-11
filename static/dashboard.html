@@ -17,21 +17,25 @@
 
         @media print {
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .no-print { display: none !important; }
+            .no-print, .modal { display: none !important; } /* <--- Fixed the modal photobomb */
             .print-only { display: block; }
             .print-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+            
             .official-doc { width: 100%; max-width: 8.5in; margin: 0 auto; padding: 1in 0.5in; }
             .doc-header { display: flex; align-items: center; justify-content: center; gap: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 20px; margin-bottom: 30px; }
             .doc-logo { max-height: 80px; max-width: 150px; object-fit: contain; }
             .doc-titles { text-align: center; }
             .doc-company { font-size: 22px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; }
             .doc-sub { font-size: 14px; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 5px; }
+            
             .print-week-group { page-break-inside: avoid; margin-bottom: 40px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
             .week-header { background-color: #f1f5f9; padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #cbd5e1; color: #334155; }
+            
             table { width: 100%; border-collapse: collapse; font-size: 13px; }
             th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
             th { background-color: #f8fafc; font-weight: 600; color: #475569; }
             .total-row th { background-color: #f1f5f9; color: #0f172a; font-size: 14px; }
+            
             .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding: 0 40px; page-break-inside: avoid; }
             .sig-block { width: 40%; text-align: center; }
             .sig-line { border-top: 1px solid #0f172a; margin-top: 40px; padding-top: 8px; font-weight: 700; font-size: 14px; }
@@ -85,7 +89,7 @@
         <div class="doc-header">
             <img id="printLogo" class="doc-logo" style="display: none;" src="" alt="Company Logo">
             <div class="doc-titles">
-                <div class="doc-company" contenteditable="true">Philippine Spark Security Infoplant Corp</div>
+                <div class="doc-company" id="printCompanyDisplay">COMPANY NAME</div>
                 <div class="doc-sub">Official Daily Time Record</div>
             </div>
         </div>
@@ -96,8 +100,8 @@
                 <div class="sig-title">IT Administration Intern</div>
             </div>
             <div class="sig-block">
-                <div class="sig-line" contenteditable="true">Click to Edit Supervisor Name</div>
-                <div class="sig-title">IT Admin Supervisor</div>
+                <div class="sig-line" id="printSupNameDisplay">Supervisor Name</div>
+                <div class="sig-title" id="printSupTitleDisplay">Supervisor Title</div>
             </div>
         </div>
     </div>
@@ -105,7 +109,7 @@
 
 <!-- === MODALS === -->
 
-<!-- Custom Delete Confirmation Modal -->
+<!-- Delete Confirm Modal -->
 <div id="deleteConfirmModal" class="modal">
     <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm m-4 text-center">
         <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -179,14 +183,35 @@
     </div>
 </div>
 
-<!-- Print Settings Modal -->
-<div id="printSettingsModal" class="modal">
-    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md m-4">
-        <h3 class="text-xl font-bold mb-2">Print & Export</h3>
-        <p class="text-sm text-slate-500 mb-6">Select which weeks you want to include in the official document.</p>
-        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6 max-h-64 overflow-y-auto" id="weekCheckboxes"></div>
+<!-- Print Settings Modal Update -->
+<div id="printSettingsModal" class="modal no-print">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-lg m-4 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-xl font-bold mb-1">Print & Export Document</h3>
+        <p class="text-sm text-slate-500 mb-6">Configure your document headers and select weeks.</p>
+        
+        <!-- Document Settings (Saved to LocalStorage) -->
+        <div class="space-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+                <label class="text-xs font-bold text-slate-600 uppercase tracking-wide block mb-1">Company Name</label>
+                <input type="text" id="inputCompName" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none" placeholder="e.g., Philippine Spark Security">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wide block mb-1">Supervisor Name</label>
+                    <input type="text" id="inputSupName" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none" placeholder="Juan Dela Cruz">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 uppercase tracking-wide block mb-1">Supervisor Title</label>
+                    <input type="text" id="inputSupTitle" class="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-800 outline-none" placeholder="IT Head">
+                </div>
+            </div>
+        </div>
+
+        <label class="text-xs font-bold text-slate-600 uppercase tracking-wide block mb-2">Select Weeks to Print</label>
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-2 mb-6 max-h-48 overflow-y-auto" id="weekCheckboxes"></div>
+        
         <div class="flex gap-3">
-            <button onclick="window.print()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl">Generate PDF</button>
+            <button onclick="executePrint()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl">Generate PDF</button>
             <button onclick="toggleModal('printSettingsModal')" class="flex-1 bg-white border border-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl hover:bg-slate-50">Cancel</button>
         </div>
     </div>
@@ -198,7 +223,6 @@
     let groupedLogs = {};
     let activeDeleteId = null;
 
-    // Configured for 12-hour AM/PM format
     flatpickr(".flatpickr-date", { altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" });
     const timeConfig = { enableTime: true, noCalendar: true, dateFormat: "h:i K", time_24hr: false };
     flatpickr(".flatpickr-time", timeConfig);
@@ -244,7 +268,6 @@
         if(event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
     }
 
-    // Logic Functions
     function parseTimeAMPM(timeStr) {
         if (!timeStr || timeStr === "N/A") return null;
         const [time, modifier] = timeStr.split(' ');
@@ -267,7 +290,6 @@
         return ((dOut - dIn) / (1000 * 60 * 60)).toFixed(2);
     }
 
-    // API Interactions
     async function loadUserData() {
         const res = await fetch('/api/user');
         if(res.ok) {
@@ -325,7 +347,6 @@
             let tIn = document.getElementById(`bIn_${i}`).value;
             let tOut = document.getElementById(`bOut_${i}`).value;
             
-            // Empty fields count as N/A
             if(!tIn && !tOut) { tIn = "N/A"; tOut = "N/A"; }
             
             if(tIn && tOut) {
@@ -357,7 +378,6 @@
         }
     });
 
-    // Render Functions
     function renderDashboard() {
         const container = document.getElementById('dashboard-views');
         container.innerHTML = '';
@@ -401,15 +421,29 @@
     function populatePrintCheckboxes() {
         const container = document.getElementById('weekCheckboxes');
         container.innerHTML = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).map(week => `
-            <label class="flex items-center p-3 border-b border-slate-100 cursor-pointer hover:bg-slate-100 rounded-lg transition-colors">
-                <input type="checkbox" class="print-week-cb w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500" value="${week}" checked onchange="buildPrintView()">
-                <span class="ml-3 font-medium text-slate-700">${week}</span>
+            <label class="flex items-center p-2 border-b border-slate-200 cursor-pointer hover:bg-white rounded transition-colors">
+                <input type="checkbox" class="print-week-cb w-4 h-4 text-slate-800 rounded border-slate-300 focus:ring-slate-800" value="${week}" checked>
+                <span class="ml-3 text-sm font-semibold text-slate-700">${week}</span>
             </label>
         `).join('');
-        buildPrintView();
     }
 
-    function buildPrintView() {
+    function executePrint() {
+        // Save inputs to local storage
+        const comp = document.getElementById('inputCompName').value || "Philippine Spark Security Infoplant Corp";
+        const sName = document.getElementById('inputSupName').value || "Supervisor Name";
+        const sTitle = document.getElementById('inputSupTitle').value || "IT Admin Supervisor";
+        
+        localStorage.setItem('dtr_comp', comp);
+        localStorage.setItem('dtr_sup', sName);
+        localStorage.setItem('dtr_title', sTitle);
+
+        // Inject to print template
+        document.getElementById('printCompanyDisplay').innerText = comp;
+        document.getElementById('printSupNameDisplay').innerText = sName;
+        document.getElementById('printSupTitleDisplay').innerText = sTitle;
+
+        // Render tables
         const container = document.getElementById('print-data-container');
         container.innerHTML = '';
         
@@ -437,15 +471,24 @@
             </div>`;
             container.innerHTML += html;
         });
+
+        // Fire print dialog
+        window.print();
     }
 
     window.onload = () => { 
         loadUserData().then(fetchLogs); 
+        
+        // Load saved images and text
         const savedLogo = localStorage.getItem('dtr_logo');
         if(savedLogo) {
             document.getElementById('printLogo').src = savedLogo;
             document.getElementById('printLogo').style.display = 'block';
         }
+        
+        document.getElementById('inputCompName').value = localStorage.getItem('dtr_comp') || "Philippine Spark Security Infoplant Corp";
+        document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
+        document.getElementById('inputSupTitle').value = localStorage.getItem('dtr_title') || "IT Admin Supervisor";
     };
 </script>
 </body>
