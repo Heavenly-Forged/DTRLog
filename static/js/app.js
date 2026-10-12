@@ -522,7 +522,8 @@ function executePrint() {
             const logs = groupedLogs[week];
             
             // Added page-break-after so each week gets its own printed page
-            let html = `<div class="print-week-group" style="page-break-after: always;">
+            // Changed from page-break-after to break-inside so multiple fit on one page
+            let html = `<div class="print-week-group" style="break-inside: avoid; page-break-inside: avoid; margin-bottom: 3rem;">
                 <div class="week-header">${week}</div>
                 <table>
                     <thead><tr><th>Date</th><th>Time In</th><th>Time Out</th><th>Lunch Deduct</th><th>Net Hours</th></tr></thead>
