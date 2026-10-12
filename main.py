@@ -1,13 +1,15 @@
 import os
 from fastapi import FastAPI, Depends, Request, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pydantic import BaseModel
+from typing import Optional
 from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 
+# --- DATABASE SETUP ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local_test.db") 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -20,6 +22,7 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# --- DATABASE MODELS ---
 class LogEntry(Base):
     __tablename__ = "dtr_logs_v4" 
     id = Column(Integer, primary_key=True, index=True)
@@ -31,8 +34,19 @@ class LogEntry(Base):
     lunch_hours = Column(Float, default=0.0)
     hours = Column(Float)
 
+class UserProfile(Base):
+    __tablename__ = "user_profiles_v1"
+    email = Column(String, primary_key=True, index=True)
+    name = Column(String)
+    title = Column(String)
+    shift_start = Column(String, default="07:30 AM")
+    shift_end = Column(String, default="06:30 PM")
+    target_hours = Column(Float, default=0.0)
+    logo_data = Column(String, nullable=True)
+
 Base.metadata.create_all(bind=engine)
 
+# --- APP INITIALIZATION ---
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -53,6 +67,13 @@ def get_db():
     finally:
         db.close()
 
+def get_current_user(request: Request):
+    user = request.session.get('user')
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    return user
+
+# --- PYDANTIC SCHEMAS ---
 class LogCreate(BaseModel):
     week_label: str
     date: str
@@ -61,12 +82,15 @@ class LogCreate(BaseModel):
     lunch_hours: float
     hours: float
 
-def get_current_user(request: Request):
-    user = request.session.get('user')
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-    return user
+class ProfileUpdate(BaseModel):
+    name: str
+    title: str
+    shift_start: str
+    shift_end: str
+    target_hours: float
+    logo_data: Optional[str] = None
 
+# --- AUTH ROUTES ---
 @app.get("/")
 def read_root(request: Request):
     user = request.session.get('user')
@@ -90,6 +114,47 @@ def logout(request: Request):
     request.session.pop('user', None)
     return RedirectResponse(url='/')
 
+@app.get("/api/user")
+def get_user(request: Request):
+    return get_current_user(request)
+
+# --- PROFILE SYNC ROUTES ---
+@app.get("/api/profile")
+def get_profile(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    profile = db.query(UserProfile).filter(UserProfile.email == user['email']).first()
+    if not profile:
+        return {
+            "name": user.get('name', ''),
+            "title": "Project Manager",
+            "shift_start": "07:30 AM",
+            "shift_end": "06:30 PM",
+            "target_hours": 0,
+            "logo_data": None
+        }
+    return profile
+
+@app.post("/api/profile")
+def update_profile(p: ProfileUpdate, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    profile = db.query(UserProfile).filter(UserProfile.email == user['email']).first()
+    if not profile:
+        profile = UserProfile(email=user['email'])
+        db.add(profile)
+    
+    profile.name = p.name
+    profile.title = p.title
+    profile.shift_start = p.shift_start
+    profile.shift_end = p.shift_end
+    profile.target_hours = p.target_hours
+    
+    if p.logo_data is not None:
+        profile.logo_data = p.logo_data
+        
+    db.commit()
+    return {"message": "Profile updated"}
+
+# --- TIME LOG ROUTES ---
 @app.get("/api/logs")
 def get_logs(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
@@ -112,13 +177,6 @@ def add_log(log: LogCreate, request: Request, db: Session = Depends(get_db)):
     db.refresh(new_log)
     return new_log
 
-@app.delete("/api/logs/{log_id}")
-def delete_log(log_id: int, request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    db.query(LogEntry).filter(LogEntry.id == log_id, LogEntry.user_email == user['email']).delete()
-    db.commit()
-    return {"message": "Log deleted"}
-
 @app.put("/api/logs/{log_id}")
 def update_log(log_id: int, log: LogCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request)
@@ -135,6 +193,9 @@ def update_log(log_id: int, log: LogCreate, request: Request, db: Session = Depe
     db.commit()
     return {"message": "Log updated"}
 
-@app.get("/api/user")
-def get_user(request: Request):
-    return get_current_user(request)
+@app.delete("/api/logs/{log_id}")
+def delete_log(log_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    db.query(LogEntry).filter(LogEntry.id == log_id, LogEntry.user_email == user['email']).delete()
+    db.commit()
+    return {"message": "Log deleted"}

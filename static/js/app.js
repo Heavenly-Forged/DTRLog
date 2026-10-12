@@ -28,6 +28,14 @@ let allLogs = [];
 let groupedLogs = {};
 let activeDeleteId = null;
 let activeDeleteWeek = null;
+let userProfile = {
+    name: "",
+    title: "Project Manager",
+    shift_start: "07:30 AM",
+    shift_end: "06:30 PM",
+    target_hours: 0,
+    logo_data: null
+};
 
 // --- UTILITIES ---
 function formatHM(decimalHours) {
@@ -42,7 +50,6 @@ function formatHM(decimalHours) {
 
 function cleanWeekStr(str) {
     if (!str) return "Week 1";
-    // Trims spaces and properly capitalizes to prevent duplicates (e.g., "week 9 " -> "Week 9")
     return str.trim().replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.substr(1).toLowerCase());
 }
 
@@ -65,10 +72,44 @@ if (batchContainer) {
     flatpickr(".flatpickr-time", timeConfig);
 }
 
-// --- PROFILE & SHIFT MANAGEMENT ---
+// --- PROFILE & CLOUD SYNC ---
+async function fetchProfile() {
+    try {
+        const res = await fetch('/api/profile');
+        if (res.ok) {
+            userProfile = await res.json();
+            
+            // Fallback to Google name if brand new user
+            if (!userProfile.name && googleProfileName) userProfile.name = googleProfileName;
+            
+            applyInternProfile(userProfile.name, userProfile.title);
+            
+            const targetInput = document.getElementById('targetHoursInput');
+            if (targetInput) targetInput.value = userProfile.target_hours > 0 ? userProfile.target_hours : "";
+            
+            if (userProfile.logo_data) {
+                const printLogo = document.getElementById('printLogo');
+                if (printLogo) { printLogo.src = userProfile.logo_data; printLogo.style.display = 'block'; }
+                updateLogoIndicator();
+            }
+            updateProgressTracker();
+        }
+    } catch (e) {
+        console.error("Failed to load profile", e);
+    }
+}
+
+async function saveProfileToCloud(updatedData) {
+    userProfile = { ...userProfile, ...updatedData };
+    await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userProfile)
+    });
+}
+
 function checkOnboarding(googleName) {
-    const savedName = localStorage.getItem('dtr_intern_name');
-    if (!savedName) {
+    if (!userProfile.name) {
         document.getElementById('onboardName').value = googleName;
         document.getElementById('onboardModalTitle').innerText = "Welcome to DTR";
         document.getElementById('onboardCloseBtn').classList.add('hidden');
@@ -77,24 +118,25 @@ function checkOnboarding(googleName) {
 }
 
 function openEditProfile() {
-    document.getElementById('onboardName').value = localStorage.getItem('dtr_intern_name') || googleProfileName;
-    document.getElementById('onboardTitle').value = localStorage.getItem('dtr_intern_title') || "Project Manager";
-    document.getElementById('onboardShiftStart').value = localStorage.getItem('dtr_shift_start') || "07:30 AM";
-    document.getElementById('onboardShiftEnd').value = localStorage.getItem('dtr_shift_end') || "06:30 PM";
+    document.getElementById('onboardName').value = userProfile.name || googleProfileName;
+    document.getElementById('onboardTitle').value = userProfile.title || "Project Manager";
+    document.getElementById('onboardShiftStart').value = userProfile.shift_start || "07:30 AM";
+    document.getElementById('onboardShiftEnd').value = userProfile.shift_end || "06:30 PM";
     document.getElementById('onboardModalTitle').innerText = "Edit Profile";
     document.getElementById('onboardCloseBtn').classList.remove('hidden');
     toggleModal('onboardingModal');
 }
 
-function saveOnboarding() {
+async function saveOnboarding() {
     const name = document.getElementById('onboardName').value || googleProfileName;
     const title = document.getElementById('onboardTitle').value || "Project Manager";
-    localStorage.setItem('dtr_intern_name', name);
-    localStorage.setItem('dtr_intern_title', title);
-    localStorage.setItem('dtr_shift_start', document.getElementById('onboardShiftStart').value || "07:30 AM");
-    localStorage.setItem('dtr_shift_end', document.getElementById('onboardShiftEnd').value || "06:30 PM");
+    const shiftStart = document.getElementById('onboardShiftStart').value || "07:30 AM";
+    const shiftEnd = document.getElementById('onboardShiftEnd').value || "06:30 PM";
+    
+    await saveProfileToCloud({ name, title, shift_start: shiftStart, shift_end: shiftEnd });
     applyInternProfile(name, title);
     toggleModal('onboardingModal');
+    
     if (allLogs.length > 0) { renderDashboard(); updateProgressTracker(); }
 }
 
@@ -143,17 +185,18 @@ function updateLogoIndicator() {
 
 function handleLogoUpload(event) {
     const reader = new FileReader();
-    reader.onload = e => {
-        localStorage.setItem('dtr_logo', e.target.result);
+    reader.onload = async e => {
+        const base64Logo = e.target.result;
+        await saveProfileToCloud({ logo_data: base64Logo });
         const printLogo = document.getElementById('printLogo');
-        if (printLogo) { printLogo.src = e.target.result; printLogo.style.display = 'block'; }
+        if (printLogo) { printLogo.src = base64Logo; printLogo.style.display = 'block'; }
         updateLogoIndicator();
     };
     if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
 }
 
-function removeLogo() {
-    localStorage.removeItem('dtr_logo');
+async function removeLogo() {
+    await saveProfileToCloud({ logo_data: null });
     const printLogo = document.getElementById('printLogo');
     if (printLogo) { printLogo.src = ''; printLogo.style.display = 'none'; }
     const label = document.getElementById('logoUploadLabel');
@@ -185,8 +228,8 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (timeIn === "N/A" || timeOut === "N/A") return 0;
     const inT = parseTimeAMPM(timeIn);
     const outT = parseTimeAMPM(timeOut);
-    const shiftStartT = parseTimeAMPM(localStorage.getItem('dtr_shift_start') || "07:30 AM");
-    const shiftEndT = parseTimeAMPM(localStorage.getItem('dtr_shift_end') || "06:30 PM");
+    const shiftStartT = parseTimeAMPM(userProfile.shift_start || "07:30 AM");
+    const shiftEndT = parseTimeAMPM(userProfile.shift_end || "06:30 PM");
 
     if (!inT || !outT) return 0;
     
@@ -207,12 +250,13 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
 }
 
 // --- PROGRESS TRACKER ---
-function updateProgressTracker() {
+async function updateProgressTracker() {
     const targetInput = document.getElementById('targetHoursInput');
     if (!targetInput) return;
-    localStorage.setItem('dtr_target_hours', targetInput.value);
+    
     let target = parseFloat(targetInput.value);
     if (isNaN(target) || target < 0) target = 0;
+    await saveProfileToCloud({ target_hours: target });
     
     let totalHours = 0;
     allLogs.forEach(log => { totalHours += parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60)); });
@@ -460,13 +504,14 @@ function executePrint() {
     const sName = document.getElementById('inputSupName').value || "Supervisor Name";
     const sTitle = document.getElementById('inputSupTitle').value || "Supervisor Title";
     
+    const iName = userProfile.name || "Intern Name";
+    const iTitle = userProfile.title || "Project Manager";
+    
     localStorage.setItem('dtr_comp', comp);
     localStorage.setItem('dtr_sup', sName);
     localStorage.setItem('dtr_title', sTitle);
 
     if (document.getElementById('printCompanyDisplay')) document.getElementById('printCompanyDisplay').innerText = comp;
-    if (document.getElementById('printSupNameDisplay')) document.getElementById('printSupNameDisplay').innerText = sName;
-    if (document.getElementById('printSupTitleDisplay')) document.getElementById('printSupTitleDisplay').innerText = sTitle;
 
     const container = document.getElementById('print-data-container');
     if (container) {
@@ -476,7 +521,8 @@ function executePrint() {
             const week = cb.value;
             const logs = groupedLogs[week];
             
-            let html = `<div class="print-week-group">
+            // Added page-break-after so each week gets its own printed page
+            let html = `<div class="print-week-group" style="page-break-after: always;">
                 <div class="week-header">${week}</div>
                 <table>
                     <thead><tr><th>Date</th><th>Time In</th><th>Time Out</th><th>Lunch Deduct</th><th>Net Hours</th></tr></thead>
@@ -495,6 +541,18 @@ function executePrint() {
             html += `</tbody>
                     <tfoot><tr class="total-row"><th colspan="4" style="text-align: right; padding-right: 20px;">Total for ${week}:</th><th>${formatHM(total)}</th></tr></tfoot>
                 </table>
+                
+                <!-- Signatures injected per week -->
+                <div class="signatures" style="display: flex; justify-content: space-between; margin-top: 60px; padding: 0 40px; page-break-inside: avoid;">
+                    <div class="sig-block" style="width: 40%; text-align: center;">
+                        <div class="sig-line" style="border-top: 1px solid #0f172a; margin-top: 40px; padding-top: 8px; font-weight: 700; font-size: 14px;">${iName}</div>
+                        <div class="sig-title" style="font-size: 12px; color: #64748b;">${iTitle}</div>
+                    </div>
+                    <div class="sig-block" style="width: 40%; text-align: center;">
+                        <div class="sig-line" style="border-top: 1px solid #0f172a; margin-top: 40px; padding-top: 8px; font-weight: 700; font-size: 14px;">${sName}</div>
+                        <div class="sig-title" style="font-size: 12px; color: #64748b;">${sTitle}</div>
+                    </div>
+                </div>
             </div>`;
             container.innerHTML += html;
         });
@@ -511,27 +569,14 @@ window.onload = async () => {
             googleProfileName = user.name;
             if (document.getElementById('userAvatar') && user.picture) document.getElementById('userAvatar').src = user.picture;
             
+            await fetchProfile();
             checkOnboarding(googleProfileName);
-            
-            const storedName = localStorage.getItem('dtr_intern_name') || googleProfileName;
-            const storedTitle = localStorage.getItem('dtr_intern_title') || "Project Manager";
-            applyInternProfile(storedName, storedTitle);
         }
     } catch (e) {
         console.error("Auth skipped or failed:", e);
     }
     
-    const targetInput = document.getElementById('targetHoursInput');
-    if (targetInput) targetInput.value = localStorage.getItem('dtr_target_hours') || "";
-
     if (document.getElementById('dashboard-views')) fetchLogs();
-    
-    const savedLogo = localStorage.getItem('dtr_logo');
-    if (savedLogo) {
-        const printLogo = document.getElementById('printLogo');
-        if (printLogo) { printLogo.src = savedLogo; printLogo.style.display = 'block'; }
-        updateLogoIndicator(); 
-    }
     
     if (document.getElementById('inputCompName')) document.getElementById('inputCompName').value = localStorage.getItem('dtr_comp') || "Company Name";
     if (document.getElementById('inputSupName')) document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
