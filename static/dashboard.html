@@ -44,13 +44,27 @@
         <!-- Right: Secondary Settings -->
         <div class="flex gap-2 items-center flex-wrap w-full lg:w-auto shrink-0 justify-center lg:justify-end">
             <button onclick="openEditProfile()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">Edit</button>
-            <div class="relative group">
-                <button class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">Theme</button>
-                <div class="absolute right-0 mt-2 w-32 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 hidden group-hover:block overflow-hidden z-50">
-                    <button onclick="setTheme('light')" class="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Light Mode</button>
-                    <button onclick="setTheme('dark')" class="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Dark Mode</button>
-                </div>
+            <!-- Right: Secondary Settings -->
+        <div class="flex gap-2 items-center flex-wrap w-full lg:w-auto shrink-0 justify-center lg:justify-end">
+            <button onclick="openEditProfile()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">Edit</button>
+            
+            <!-- New Theme Toggle Button -->
+            <button onclick="toggleTheme()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 p-2 rounded-xl transition-all shadow-sm" aria-label="Toggle Dark Mode">
+                <!-- Sun Icon (Shows in Dark Mode) -->
+                <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <!-- Moon Icon (Shows in Light Mode) -->
+                <svg class="w-4 h-4 block dark:hidden text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+
+            <div class="flex items-center gap-1">
+                <label id="logoUploadLabel" class="cursor-pointer bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm mb-0">
+                    <span>Logo</span>
+                    <input type="file" id="logoUpload" class="hidden" accept="image/*" onchange="handleLogoUpload(event)">
+                </label>
+                <button id="removeLogoBtn" onclick="removeLogo()" class="hidden bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-800/50 p-2 rounded-xl transition-all shadow-sm"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
+            <button onclick="toggleModal('logoutConfirmModal')" class="bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">Logout</button>
+        </div>
             <div class="flex items-center gap-1">
                 <label id="logoUploadLabel" class="cursor-pointer bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm mb-0">
                     <span>Logo</span>
@@ -107,7 +121,9 @@
                 <div class="doc-sub">Official Daily Time Record</div>
             </div>
         </div>
+        <div id="print-data-container"></div>
     </div>
+</div>
 </div>
 
 <!-- === MODALS === -->

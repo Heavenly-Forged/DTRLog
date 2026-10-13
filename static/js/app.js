@@ -504,6 +504,7 @@ function executePrint() {
     const sName = document.getElementById('inputSupName').value || "Supervisor Name";
     const sTitle = document.getElementById('inputSupTitle').value || "Supervisor Title";
     
+    // Pulls your name and title straight from the cloud profile
     const iName = userProfile.name || "Intern Name";
     const iTitle = userProfile.title || "Project Manager";
     
@@ -521,8 +522,7 @@ function executePrint() {
             const week = cb.value;
             const logs = groupedLogs[week];
             
-            // Added page-break-after so each week gets its own printed page
-            // Changed from page-break-after to break-inside so multiple fit on one page
+            // Using break-inside: avoid lets weeks share a page without awkwardly splitting tables in half
             let html = `<div class="print-week-group" style="break-inside: avoid; page-break-inside: avoid; margin-bottom: 3rem;">
                 <div class="week-header">${week}</div>
                 <table>
@@ -543,8 +543,8 @@ function executePrint() {
                     <tfoot><tr class="total-row"><th colspan="4" style="text-align: right; padding-right: 20px;">Total for ${week}:</th><th>${formatHM(total)}</th></tr></tfoot>
                 </table>
                 
-                <!-- Signatures injected per week -->
-                <div class="signatures" style="display: flex; justify-content: space-between; margin-top: 60px; padding: 0 40px; page-break-inside: avoid;">
+                <!-- Signatures automatically injected under every week -->
+                <div class="signatures" style="display: flex; justify-content: space-between; margin-top: 40px; padding: 0 40px; page-break-inside: avoid;">
                     <div class="sig-block" style="width: 40%; text-align: center;">
                         <div class="sig-line" style="border-top: 1px solid #0f172a; margin-top: 40px; padding-top: 8px; font-weight: 700; font-size: 14px;">${iName}</div>
                         <div class="sig-title" style="font-size: 12px; color: #64748b;">${iTitle}</div>
@@ -583,3 +583,11 @@ window.onload = async () => {
     if (document.getElementById('inputSupName')) document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
     if (document.getElementById('inputSupTitle')) document.getElementById('inputSupTitle').value = localStorage.getItem('dtr_title') || "Supervisor Title";
 };
+
+function toggleTheme() {
+    if (document.documentElement.classList.contains('dark')) {
+        setTheme('light');
+    } else {
+        setTheme('dark');
+    }
+}
