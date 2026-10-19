@@ -14,6 +14,14 @@ function setTheme(theme) {
     if (typeof updateProgressTracker === 'function') updateProgressTracker();
 }
 
+function toggleTheme() {
+    if (document.documentElement.classList.contains('dark')) {
+        setTheme('light');
+    } else {
+        setTheme('dark');
+    }
+}
+
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     if (!('theme' in localStorage)) {
         if (e.matches) document.documentElement.classList.add('dark');
@@ -72,8 +80,6 @@ async function fetchProfile() {
         const res = await fetch('/api/profile');
         if (res.ok) {
             userProfile = await res.json();
-            
-            // Fallback to Google name if brand new user
             if (!userProfile.name && googleProfileName) userProfile.name = googleProfileName;
             
             applyInternProfile(userProfile.name, userProfile.title);
@@ -82,8 +88,6 @@ async function fetchProfile() {
             if (targetInput) targetInput.value = userProfile.target_hours > 0 ? userProfile.target_hours : "";
             
             if (userProfile.logo_data) {
-                const printLogo = document.getElementById('printLogo');
-                if (printLogo) { printLogo.src = userProfile.logo_data; printLogo.style.display = 'block'; }
                 updateLogoIndicator();
             }
             updateProgressTracker();
@@ -137,8 +141,6 @@ async function saveOnboarding() {
 function applyInternProfile(name, title) {
     if (document.getElementById('userName')) document.getElementById('userName').innerText = name;
     if (document.getElementById('headerInternTitle')) document.getElementById('headerInternTitle').innerText = title;
-    if (document.getElementById('printInternName')) document.getElementById('printInternName').innerText = name;
-    if (document.getElementById('printInternTitle')) document.getElementById('printInternTitle').innerText = title;
 }
 
 // --- MODALS & LOGO ---
@@ -182,8 +184,6 @@ function handleLogoUpload(event) {
     reader.onload = async e => {
         const base64Logo = e.target.result;
         await saveProfileToCloud({ logo_data: base64Logo });
-        const printLogo = document.getElementById('printLogo');
-        if (printLogo) { printLogo.src = base64Logo; printLogo.style.display = 'block'; }
         updateLogoIndicator();
     };
     if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
@@ -191,15 +191,13 @@ function handleLogoUpload(event) {
 
 async function removeLogo() {
     await saveProfileToCloud({ logo_data: null });
-    const printLogo = document.getElementById('printLogo');
-    if (printLogo) { printLogo.src = ''; printLogo.style.display = 'none'; }
     const label = document.getElementById('logoUploadLabel');
     if (label) {
         label.classList.replace('bg-emerald-50', 'bg-slate-100');
         label.classList.replace('text-emerald-700', 'text-slate-700');
         label.classList.replace('dark:bg-emerald-900/30', 'dark:bg-slate-700');
         label.classList.replace('dark:text-emerald-400', 'dark:text-slate-200');
-        label.innerHTML = `<span>Upload Logo</span><input type="file" id="logoUpload" class="hidden" accept="image/*" onchange="handleLogoUpload(event)">`;
+        label.innerHTML = `<span>Logo</span><input type="file" id="logoUpload" class="hidden" accept="image/*" onchange="handleLogoUpload(event)">`;
     }
     const removeBtn = document.getElementById('removeLogoBtn');
     if (removeBtn) removeBtn.classList.add('hidden');
@@ -207,7 +205,7 @@ async function removeLogo() {
     if (fileInput) fileInput.value = '';
 }
 
-// --- DYNAMIC BOUNDARY TIME LOGIC ---
+// --- CALCULATION LOGIC ---
 function parseTimeAMPM(timeStr) {
     if (!timeStr || timeStr === "N/A") return null;
     const [time, modifier] = timeStr.split(' ');
@@ -251,7 +249,6 @@ async function updateProgressTracker() {
     let target = parseFloat(targetInput.value);
     if (isNaN(target) || target < 0) target = 0;
     
-    // Only save to cloud if the value actually changed to prevent API spam
     if (target !== userProfile.target_hours) {
         await saveProfileToCloud({ target_hours: target });
     }
@@ -284,7 +281,6 @@ async function updateProgressTracker() {
         wrapEl.style.background = `conic-gradient(#10b981 ${percent}%, ${emptyColor} ${percent}%)`;
     }
 
-    // Prediction Engine
     const estEl = document.getElementById('estimatedCompletionDate');
     if (estEl) {
         if (target <= 0) {
@@ -300,10 +296,8 @@ async function updateProgressTracker() {
 }
 
 function predictCompletionDate(remainingHours) {
-    // Standard Philippine Regular Holidays
     const phHolidays = ["01-01", "04-09", "05-01", "06-12", "08-26", "11-30", "12-25", "12-30"];
     
-    // Calculate typical daily hours based on user's shift settings (minus 1 hour default lunch)
     let dailyNetHours = parseFloat(calculateHours(userProfile.shift_start, userProfile.shift_end, 60));
     if (isNaN(dailyNetHours) || dailyNetHours <= 0) dailyNetHours = 8; 
 
@@ -315,7 +309,6 @@ function predictCompletionDate(remainingHours) {
         const dayOfWeek = currentDate.getDay();
         const mmdd = String(currentDate.getMonth() + 1).padStart(2, '0') + "-" + String(currentDate.getDate()).padStart(2, '0');
         
-        // Subtract a day needed if it's a weekday AND not a PH holiday
         if (dayOfWeek !== 0 && dayOfWeek !== 6 && !phHolidays.includes(mmdd)) {
             daysNeeded--;
         }
@@ -323,7 +316,7 @@ function predictCompletionDate(remainingHours) {
     return currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// --- SEARCH & FILTER ---
+// --- SORTING & RENDERING ---
 function filterLogs() {
     const query = document.getElementById('searchInput').value.toLowerCase();
     const weeks = document.querySelectorAll('.week-group-container');
@@ -333,7 +326,12 @@ function filterLogs() {
     });
 }
 
-// --- API FETCH & RENDER ---
+function toggleSortOrder() {
+    sortOrderDesc = !sortOrderDesc;
+    document.getElementById('sortBtnText').innerText = sortOrderDesc ? "Sort: Latest First" : "Sort: Oldest First";
+    renderDashboard();
+}
+
 async function fetchLogs() {
     try {
         const res = await fetch('/api/logs');
@@ -355,19 +353,11 @@ async function fetchLogs() {
     }
 }
 
-// --- SORTING & RENDERING ---
-function toggleSortOrder() {
-    sortOrderDesc = !sortOrderDesc;
-    document.getElementById('sortBtnText').innerText = sortOrderDesc ? "Sort: Latest First" : "Sort: Oldest First";
-    renderDashboard();
-}
-
 function renderDashboard() {
     const container = document.getElementById('dashboard-views');
     if (!container) return;
     container.innerHTML = '';
     
-    // This checks the sort flag and reverses the weeks if necessary
     let weekKeys = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
     if (sortOrderDesc) weekKeys.reverse();
     
@@ -413,6 +403,7 @@ function renderDashboard() {
         container.innerHTML += html;
     });
 }
+
 // --- SUBMIT LOGS ---
 async function submitSingleLog() {
     let week = cleanWeekStr(document.getElementById('sWeek').value);
@@ -464,7 +455,7 @@ async function submitBatchLogs() {
     fetchLogs();
 }
 
-// --- EDIT LOG ---
+// --- EDIT & DELETE ---
 function openEditLog(id) {
     const log = allLogs.find(l => l.id === id);
     if (!log) return;
@@ -503,7 +494,6 @@ async function submitEditLog() {
     fetchLogs();
 }
 
-// --- DELETE OPERATIONS ---
 function confirmDelete(id) {
     activeDeleteId = id;
     toggleModal('deleteConfirmModal');
@@ -571,7 +561,6 @@ function executePrint() {
         
         let pageHtml = `<div class="print-page" style="page-break-after: always; padding: 20px 0;">`;
         
-        // This is the code that dynamically injects the header at the top of each page chunk
         pageHtml += `
             <div class="doc-header" style="text-align: center; margin-bottom: 30px;">
                 ${logoSrc ? `<img src="${logoSrc}" style="height: 60px; margin-bottom: 10px; display: inline-block;">` : ''}
@@ -671,11 +660,3 @@ window.onload = async () => {
     if (document.getElementById('inputSupName')) document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
     if (document.getElementById('inputSupTitle')) document.getElementById('inputSupTitle').value = localStorage.getItem('dtr_title') || "Supervisor Title";
 };
-
-function toggleTheme() {
-    if (document.documentElement.classList.contains('dark')) {
-        setTheme('light');
-    } else {
-        setTheme('dark');
-    }
-}

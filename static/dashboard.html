@@ -21,6 +21,28 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
+<style>
+    .modal-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        background-color: rgba(15, 23, 42, 0.75) !important;
+        backdrop-filter: blur(4px) !important;
+        z-index: 9999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        opacity: 0;
+        pointer-events: none;
+        padding: 1rem !important;
+        transition: opacity 0.2s ease-in-out !important;
+    }
+    .modal-overlay.active {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+</style>
+
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased p-4 md:p-8 transition-colors duration-300">
 
 <div class="max-w-6xl mx-auto">
