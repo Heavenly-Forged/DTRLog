@@ -367,7 +367,7 @@ function renderDashboard() {
     if (!container) return;
     container.innerHTML = '';
     
-    // Sort weeks based on toggle state
+    // This checks the sort flag and reverses the weeks if necessary
     let weekKeys = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
     if (sortOrderDesc) weekKeys.reverse();
     
@@ -566,14 +566,12 @@ function executePrint() {
     const checkboxes = Array.from(document.querySelectorAll('.print-week-cb:checked'));
     const selectedWeeks = checkboxes.map(cb => cb.value);
     
-    // Chunk weeks into groups of 2 to guarantee they fit perfectly on one printed page
     for (let i = 0; i < selectedWeeks.length; i += 2) {
         const weekChunk = selectedWeeks.slice(i, i + 2);
         
-        // Create a new page container with a forced page break
         let pageHtml = `<div class="print-page" style="page-break-after: always; padding: 20px 0;">`;
         
-        // Inject the document header at the very top of THIS specific page
+        // This is the code that dynamically injects the header at the top of each page chunk
         pageHtml += `
             <div class="doc-header" style="text-align: center; margin-bottom: 30px;">
                 ${logoSrc ? `<img src="${logoSrc}" style="height: 60px; margin-bottom: 10px; display: inline-block;">` : ''}
@@ -583,7 +581,6 @@ function executePrint() {
             </div>
         `;
         
-        // Generate the 1 or 2 week tables for this chunk
         weekChunk.forEach(week => {
             const logs = groupedLogs[week];
             let total = 0;
@@ -645,7 +642,7 @@ function executePrint() {
             pageHtml += tableHtml;
         });
         
-        pageHtml += `</div>`; // Close page div
+        pageHtml += `</div>`; 
         container.innerHTML += pageHtml;
     }
     
