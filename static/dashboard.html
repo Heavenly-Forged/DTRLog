@@ -21,34 +21,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
-
-<style>
-    .modal-overlay {
-        position: fixed !important;
-        inset: 0 !important;
-        background-color: rgba(15, 23, 42, 0.75) !important;
-        backdrop-filter: blur(4px) !important;
-        z-index: 9999 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        opacity: 0;
-        pointer-events: none;
-        padding: 1rem !important;
-        transition: opacity 0.2s ease-in-out !important;
-    }
-    .modal-overlay.active {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-    }
-</style>
-
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased p-4 md:p-8 transition-colors duration-300">
 
 <div class="max-w-6xl mx-auto">
     <!-- Header: Profile, Actions & Settings -->
     <header class="mb-8 no-print glass dark:bg-slate-800/90 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-center gap-6">
-        <!-- Profile Section -->
         <div class="flex items-center gap-4 w-full lg:w-auto shrink-0">
             <img id="userAvatar" class="w-14 h-14 rounded-full ring-2 ring-slate-100 dark:ring-slate-700 shadow-sm" src="" alt="Avatar">
             <div>
@@ -57,18 +34,15 @@
             </div>
         </div>
 
-        <!-- Primary Action Buttons -->
         <div class="flex flex-wrap md:flex-nowrap items-center gap-3 w-full lg:w-auto flex-1 justify-center lg:justify-start">
             <button onclick="toggleModal('singleLogModal')" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-md whitespace-nowrap">Add Daily Log</button>
             <button onclick="toggleModal('weeklyLogModal')" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-md whitespace-nowrap">Batch Entry</button>
             <button onclick="toggleModal('printSettingsModal')" class="w-full md:w-auto bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-md whitespace-nowrap">Export PDF</button>
         </div>
 
-        <!-- Secondary Settings -->
         <div class="flex gap-2 items-center flex-wrap w-full lg:w-auto shrink-0 justify-center lg:justify-end">
             <button onclick="openEditProfile()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">Edit</button>
             
-            <!-- Theme Toggle Button -->
             <button onclick="toggleTheme()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 p-2 rounded-xl transition-all shadow-sm" aria-label="Toggle Dark Mode">
                 <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 <svg class="w-4 h-4 block dark:hidden text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
@@ -263,6 +237,36 @@
     </div>
 </div>
 
-<script src="/static/js/app.js?version=final_update"></script>
+<!-- FORCED MODAL & PRINT CSS OVERRIDE -->
+<style>
+    .modal-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        background-color: rgba(15, 23, 42, 0.75) !important;
+        backdrop-filter: blur(4px) !important;
+        z-index: 9999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        opacity: 0;
+        pointer-events: none;
+        padding: 1rem !important;
+        transition: opacity 0.2s ease-in-out !important;
+    }
+    .modal-overlay.active {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    @media print {
+        .modal-overlay {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+    }
+</style>
+
+<script src="/static/js/app.js?version=print_fix"></script>
 </body>
 </html>
