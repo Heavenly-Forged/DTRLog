@@ -28,14 +28,8 @@ let allLogs = [];
 let groupedLogs = {};
 let activeDeleteId = null;
 let activeDeleteWeek = null;
-let userProfile = {
-    name: "",
-    title: "Project Manager",
-    shift_start: "07:30 AM",
-    shift_end: "06:30 PM",
-    target_hours: 0,
-    logo_data: null
-};
+let userProfile = { name: "", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
+let sortOrderDesc = false;
 
 // --- UTILITIES ---
 function formatHM(decimalHours) {
@@ -249,14 +243,18 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     return Math.max(0, diffHours).toFixed(2);
 }
 
-// --- PROGRESS TRACKER ---
+// --- PROGRESS & PREDICTION TRACKER ---
 async function updateProgressTracker() {
     const targetInput = document.getElementById('targetHoursInput');
     if (!targetInput) return;
     
     let target = parseFloat(targetInput.value);
     if (isNaN(target) || target < 0) target = 0;
-    await saveProfileToCloud({ target_hours: target });
+    
+    // Only save to cloud if the value actually changed to prevent API spam
+    if (target !== userProfile.target_hours) {
+        await saveProfileToCloud({ target_hours: target });
+    }
     
     let totalHours = 0;
     allLogs.forEach(log => { totalHours += parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60)); });
@@ -276,6 +274,7 @@ async function updateProgressTracker() {
     if (targetEl) targetEl.innerText = target > 0 ? `${target}h` : "0h";
     const remainingEl = document.getElementById('progressRemaining');
     if (remainingEl) remainingEl.innerText = target > 0 ? `${formatHM(remaining)} remaining` : `Set target to calculate`;
+    
     const barEl = document.getElementById('linearProgressBar');
     if (barEl) barEl.style.width = `${percent}%`;
     const wrapEl = document.getElementById('circularProgressWrapper');
@@ -284,6 +283,44 @@ async function updateProgressTracker() {
         const emptyColor = isDark ? '#334155' : '#e2e8f0'; 
         wrapEl.style.background = `conic-gradient(#10b981 ${percent}%, ${emptyColor} ${percent}%)`;
     }
+
+    // Prediction Engine
+    const estEl = document.getElementById('estimatedCompletionDate');
+    if (estEl) {
+        if (target <= 0) {
+            estEl.innerText = "Set target to calculate";
+        } else if (remaining <= 0) {
+            estEl.innerText = "Requirements Completed 🎉";
+            estEl.classList.replace('text-indigo-600', 'text-emerald-600');
+            estEl.classList.replace('dark:text-indigo-400', 'dark:text-emerald-400');
+        } else {
+            estEl.innerText = predictCompletionDate(remaining);
+        }
+    }
+}
+
+function predictCompletionDate(remainingHours) {
+    // Standard Philippine Regular Holidays
+    const phHolidays = ["01-01", "04-09", "05-01", "06-12", "08-26", "11-30", "12-25", "12-30"];
+    
+    // Calculate typical daily hours based on user's shift settings (minus 1 hour default lunch)
+    let dailyNetHours = parseFloat(calculateHours(userProfile.shift_start, userProfile.shift_end, 60));
+    if (isNaN(dailyNetHours) || dailyNetHours <= 0) dailyNetHours = 8; 
+
+    let daysNeeded = Math.ceil(remainingHours / dailyNetHours);
+    let currentDate = new Date();
+
+    while (daysNeeded > 0) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        const dayOfWeek = currentDate.getDay();
+        const mmdd = String(currentDate.getMonth() + 1).padStart(2, '0') + "-" + String(currentDate.getDate()).padStart(2, '0');
+        
+        // Subtract a day needed if it's a weekday AND not a PH holiday
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !phHolidays.includes(mmdd)) {
+            daysNeeded--;
+        }
+    }
+    return currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // --- SEARCH & FILTER ---
@@ -318,12 +355,23 @@ async function fetchLogs() {
     }
 }
 
+// --- SORTING & RENDERING ---
+function toggleSortOrder() {
+    sortOrderDesc = !sortOrderDesc;
+    document.getElementById('sortBtnText').innerText = sortOrderDesc ? "Sort: Latest First" : "Sort: Oldest First";
+    renderDashboard();
+}
+
 function renderDashboard() {
     const container = document.getElementById('dashboard-views');
     if (!container) return;
     container.innerHTML = '';
     
-    Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).forEach(week => {
+    // Sort weeks based on toggle state
+    let weekKeys = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+    if (sortOrderDesc) weekKeys.reverse();
+    
+    weekKeys.forEach(week => {
         let html = `<div class="week-group-container bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
             <div class="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-white">${week}</h3>
@@ -365,7 +413,6 @@ function renderDashboard() {
         container.innerHTML += html;
     });
 }
-
 // --- SUBMIT LOGS ---
 async function submitSingleLog() {
     let week = cleanWeekStr(document.getElementById('sWeek').value);
@@ -504,60 +551,104 @@ function executePrint() {
     const sName = document.getElementById('inputSupName').value || "Supervisor Name";
     const sTitle = document.getElementById('inputSupTitle').value || "Supervisor Title";
     
-    // Pulls your name and title straight from the cloud profile
     const iName = userProfile.name || "Intern Name";
     const iTitle = userProfile.title || "Project Manager";
+    const logoSrc = userProfile.logo_data || "";
     
     localStorage.setItem('dtr_comp', comp);
     localStorage.setItem('dtr_sup', sName);
     localStorage.setItem('dtr_title', sTitle);
 
-    if (document.getElementById('printCompanyDisplay')) document.getElementById('printCompanyDisplay').innerText = comp;
-
     const container = document.getElementById('print-data-container');
-    if (container) {
-        container.innerHTML = '';
-        const checkboxes = document.querySelectorAll('.print-week-cb:checked');
-        checkboxes.forEach(cb => {
-            const week = cb.value;
+    if (!container) return;
+    container.innerHTML = '';
+    
+    const checkboxes = Array.from(document.querySelectorAll('.print-week-cb:checked'));
+    const selectedWeeks = checkboxes.map(cb => cb.value);
+    
+    // Chunk weeks into groups of 2 to guarantee they fit perfectly on one printed page
+    for (let i = 0; i < selectedWeeks.length; i += 2) {
+        const weekChunk = selectedWeeks.slice(i, i + 2);
+        
+        // Create a new page container with a forced page break
+        let pageHtml = `<div class="print-page" style="page-break-after: always; padding: 20px 0;">`;
+        
+        // Inject the document header at the very top of THIS specific page
+        pageHtml += `
+            <div class="doc-header" style="text-align: center; margin-bottom: 30px;">
+                ${logoSrc ? `<img src="${logoSrc}" style="height: 60px; margin-bottom: 10px; display: inline-block;">` : ''}
+                <div style="font-weight: 800; font-size: 18px; text-transform: uppercase; color: #0f172a;">${comp}</div>
+                <div style="font-size: 12px; font-weight: 600; color: #64748b; letter-spacing: 2px;">DAILY TIME RECORD</div>
+                <hr style="margin-top: 15px; border-top: 1px solid #cbd5e1;">
+            </div>
+        `;
+        
+        // Generate the 1 or 2 week tables for this chunk
+        weekChunk.forEach(week => {
             const logs = groupedLogs[week];
+            let total = 0;
             
-            // Using break-inside: avoid lets weeks share a page without awkwardly splitting tables in half
-            let html = `<div class="print-week-group" style="break-inside: avoid; page-break-inside: avoid; margin-bottom: 3rem;">
-                <div class="week-header">${week}</div>
-                <table>
-                    <thead><tr><th>Date</th><th>Time In</th><th>Time Out</th><th>Lunch Deduct</th><th>Net Hours</th></tr></thead>
+            let tableHtml = `
+            <div class="print-week-group" style="margin-bottom: 40px; break-inside: avoid;">
+                <div style="font-weight: 700; margin-bottom: 10px; background: #f8fafc; padding: 6px 12px; border: 1px solid #e2e8f0; font-size: 12px; color: #334155;">${week}</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; text-align: center;">
+                    <thead>
+                        <tr style="background: #f1f5f9; color: #475569;">
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">Date</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">Time In</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">Time Out</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">Lunch Deduct</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 8px;">Net Hours</th>
+                        </tr>
+                    </thead>
                     <tbody>`;
             
-            let total = 0;
             logs.forEach(log => {
                 const netHrs = parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60));
                 total += netHrs;
                 const isNa = log.time_in === "N/A";
                 const hrsDisplay = isNa ? "N/A" : formatHM(netHrs);
                 const lunchDisplay = isNa ? "-" : `${(log.lunch_hours || 0) * 60}m`;
-                html += `<tr><td>${log.date}</td><td>${log.time_in}</td><td>${log.time_out}</td><td>${lunchDisplay}</td><td>${hrsDisplay}</td></tr>`;
+                
+                tableHtml += `
+                    <tr style="color: #334155;">
+                        <td style="border: 1px solid #cbd5e1; padding: 6px;">${log.date}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 6px;">${log.time_in}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 6px;">${log.time_out}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 6px;">${lunchDisplay}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 6px; font-weight: 600;">${hrsDisplay}</td>
+                    </tr>`;
             });
             
-            html += `</tbody>
-                    <tfoot><tr class="total-row"><th colspan="4" style="text-align: right; padding-right: 20px;">Total for ${week}:</th><th>${formatHM(total)}</th></tr></tfoot>
+            tableHtml += `
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #f8fafc; font-weight: 700; color: #0f172a;">
+                            <td colspan="4" style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">Total for ${week}:</td>
+                            <td style="border: 1px solid #cbd5e1; padding: 8px;">${formatHM(total)}</td>
+                        </tr>
+                    </tfoot>
                 </table>
                 
-                <!-- Signatures automatically injected under every week -->
-                <div class="signatures" style="display: flex; justify-content: space-between; margin-top: 40px; padding: 0 40px; page-break-inside: avoid;">
-                    <div class="sig-block" style="width: 40%; text-align: center;">
-                        <div class="sig-line" style="border-top: 1px solid #0f172a; margin-top: 40px; padding-top: 8px; font-weight: 700; font-size: 14px;">${iName}</div>
-                        <div class="sig-title" style="font-size: 12px; color: #64748b;">${iTitle}</div>
+                <div style="display: flex; justify-content: space-between; margin-top: 30px; padding: 0 40px;">
+                    <div style="width: 40%; text-align: center;">
+                        <div style="border-top: 1px solid #0f172a; padding-top: 6px; font-weight: 800; font-size: 12px; text-transform: uppercase;">${iName}</div>
+                        <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${iTitle}</div>
                     </div>
-                    <div class="sig-block" style="width: 40%; text-align: center;">
-                        <div class="sig-line" style="border-top: 1px solid #0f172a; margin-top: 40px; padding-top: 8px; font-weight: 700; font-size: 14px;">${sName}</div>
-                        <div class="sig-title" style="font-size: 12px; color: #64748b;">${sTitle}</div>
+                    <div style="width: 40%; text-align: center;">
+                        <div style="border-top: 1px solid #0f172a; padding-top: 6px; font-weight: 800; font-size: 12px; text-transform: uppercase;">${sName}</div>
+                        <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${sTitle}</div>
                     </div>
                 </div>
             </div>`;
-            container.innerHTML += html;
+            
+            pageHtml += tableHtml;
         });
+        
+        pageHtml += `</div>`; // Close page div
+        container.innerHTML += pageHtml;
     }
+    
     window.print();
 }
 

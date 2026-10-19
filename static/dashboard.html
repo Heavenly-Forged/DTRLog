@@ -64,9 +64,13 @@
         </div>
     </header>
 
-    <!-- Search / Filter Bar -->
-    <div class="no-print mb-8">
-        <input type="text" id="searchInput" onkeyup="filterLogs()" placeholder="Search by date (e.g. 2026-09) or week label..." class="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+    <!-- Search & Filter Bar -->
+    <div class="no-print flex flex-col md:flex-row gap-4 mb-8">
+        <input type="text" id="searchInput" onkeyup="filterLogs()" placeholder="Search by date (e.g. 2026-09) or week label..." class="flex-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+        <button onclick="toggleSortOrder()" id="sortBtn" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-4 px-6 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+            <span id="sortBtnText">Sort: Oldest First</span>
+        </button>
     </div>
 
     <!-- OJT Progress Tracker -->
@@ -94,6 +98,12 @@
                 <div class="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div class="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out" id="linearProgressBar" style="width: 0%;"></div>
                 </div>
+                
+                <!-- Prediction Engine Display -->
+                <div class="flex justify-between items-end mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400" title="Calculated using your shift schedule, skipping weekends and PH Holidays.">Est. Completion Date:</span>
+                    <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="estimatedCompletionDate">Set target to calculate</span>
+                </div>
             </div>
         </div>
     </div>
@@ -102,15 +112,10 @@
 
     <!-- PRINT TEMPLATE -->
     <div class="print-only official-doc">
-        <div class="doc-header">
-            <img id="printLogo" class="doc-logo" style="display: none;" src="" alt="Company Logo">
-            <div class="doc-titles">
-                <div class="doc-company" id="printCompanyDisplay">COMPANY NAME</div>
-                <div class="doc-sub">Official Daily Time Record</div>
-            </div>
-        </div>
+        <!-- JS will dynamically inject the header and pages here -->
         <div id="print-data-container"></div>
     </div>
+</div>
 </div>
 </div>
 
