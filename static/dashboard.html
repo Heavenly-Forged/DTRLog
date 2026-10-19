@@ -23,9 +23,10 @@
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased p-4 md:p-8 transition-colors duration-300">
 
-<div class="max-w-6xl mx-auto print-container">
+<div class="max-w-6xl mx-auto">
+    <!-- Header: Profile, Actions & Settings -->
     <header class="mb-8 no-print glass dark:bg-slate-800/90 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-center gap-6">
-        <!-- Left: Profile Section -->
+        <!-- Profile Section -->
         <div class="flex items-center gap-4 w-full lg:w-auto shrink-0">
             <img id="userAvatar" class="w-14 h-14 rounded-full ring-2 ring-slate-100 dark:ring-slate-700 shadow-sm" src="" alt="Avatar">
             <div>
@@ -34,22 +35,20 @@
             </div>
         </div>
 
-        <!-- Center: Primary Action Buttons (Now in a line beside profile) -->
+        <!-- Primary Action Buttons -->
         <div class="flex flex-wrap md:flex-nowrap items-center gap-3 w-full lg:w-auto flex-1 justify-center lg:justify-start">
             <button onclick="toggleModal('singleLogModal')" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-md whitespace-nowrap">Add Daily Log</button>
             <button onclick="toggleModal('weeklyLogModal')" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-md whitespace-nowrap">Batch Entry</button>
             <button onclick="toggleModal('printSettingsModal')" class="w-full md:w-auto bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-md whitespace-nowrap">Export PDF</button>
         </div>
 
-        <!-- Right: Secondary Settings -->
+        <!-- Secondary Settings -->
         <div class="flex gap-2 items-center flex-wrap w-full lg:w-auto shrink-0 justify-center lg:justify-end">
             <button onclick="openEditProfile()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2 px-3 rounded-xl transition-all shadow-sm">Edit</button>
-    
-            <!-- New Theme Toggle Button -->
+            
+            <!-- Theme Toggle Button -->
             <button onclick="toggleTheme()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 p-2 rounded-xl transition-all shadow-sm" aria-label="Toggle Dark Mode">
-                <!-- Sun Icon (Shows in Dark Mode) -->
                 <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                <!-- Moon Icon (Shows in Light Mode) -->
                 <svg class="w-4 h-4 block dark:hidden text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
             </button>
 
@@ -99,7 +98,6 @@
                     <div class="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out" id="linearProgressBar" style="width: 0%;"></div>
                 </div>
                 
-                <!-- Prediction Engine Display -->
                 <div class="flex justify-between items-end mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
                     <span class="text-xs font-semibold text-slate-500 dark:text-slate-400" title="Calculated using your shift schedule, skipping weekends and PH Holidays.">Est. Completion Date:</span>
                     <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="estimatedCompletionDate">Set target to calculate</span>
@@ -108,7 +106,133 @@
         </div>
     </div>
 
-    <div id="dashboard-views" class="no-print grid gap-8"></div>
+    <!-- Dashboard Content -->
+    <div id="dashboard-views" class="no-print space-y-8"></div>
+
+    <!-- Modals -->
+    <!-- Onboarding / Edit Profile Modal -->
+    <div id="onboardingModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl relative">
+            <button id="onboardCloseBtn" onclick="toggleModal('onboardingModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h2 id="onboardModalTitle" class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Setup Profile</h2>
+            <div class="space-y-4 mb-6">
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name</label><input type="text" id="onboardName" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Position / Title</label><input type="text" id="onboardTitle" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="e.g. IT Intern"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Shift Start</label><input type="text" id="onboardShiftStart" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Shift End</label><input type="text" id="onboardShiftEnd" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                </div>
+            </div>
+            <button onclick="saveOnboarding()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">Save Profile</button>
+        </div>
+    </div>
+
+    <!-- Single Log Modal -->
+    <div id="singleLogModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl relative">
+            <button onclick="toggleModal('singleLogModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Add Daily Log</h2>
+            <div class="space-y-4 mb-6">
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Week Label</label><input type="text" id="sWeek" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="e.g. Week 1"></div>
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Date</label><input type="text" id="sDate" class="flatpickr-date w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                <div class="flex items-center gap-2 mb-2">
+                    <input type="checkbox" id="sNa" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" onchange="toggleSingleNA()">
+                    <label for="sNa" class="text-sm font-semibold text-slate-700 dark:text-slate-300">Mark as N/A (Absent/Holiday)</label>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Time In</label><input type="text" id="sTimeIn" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Time Out</label><input type="text" id="sTimeOut" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                </div>
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Lunch Break (Mins)</label><input type="number" id="sLunch" value="60" min="0" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+            </div>
+            <button onclick="submitSingleLog()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">Save Log</button>
+        </div>
+    </div>
+
+    <!-- Batch Weekly Modal -->
+    <div id="weeklyLogModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 md:p-8 w-full max-w-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleModal('weeklyLogModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Batch Weekly Entry</h2>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Week Label</label><input type="text" id="bWeek" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="Week 1"></div>
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Start Date (Monday)</label><input type="text" id="wStartDate" class="flatpickr-date w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+            </div>
+            <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl mb-6">
+                <div class="grid grid-cols-12 gap-2 mb-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    <div class="col-span-3">Day</div><div class="col-span-3">Time In</div><div class="col-span-3">Time Out</div><div class="col-span-3">Lunch (m)</div>
+                </div>
+                <div id="batchRows" class="space-y-3"></div>
+            </div>
+            <button onclick="submitBatchLogs()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors">Save Entire Week</button>
+        </div>
+    </div>
+
+    <!-- Edit Log Modal -->
+    <div id="editLogModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl relative">
+            <button onclick="toggleModal('editLogModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Edit Log</h2>
+            <input type="hidden" id="editLogId">
+            <div class="space-y-4 mb-6">
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Week Label</label><input type="text" id="eWeek" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Date</label><input type="text" id="eDate" class="flatpickr-date w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Time In</label><input type="text" id="eTimeIn" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Time Out</label><input type="text" id="eTimeOut" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                </div>
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Lunch Break (Mins)</label><input type="number" id="eLunch" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+            </div>
+            <button onclick="submitEditLog()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors">Update Log</button>
+        </div>
+    </div>
+
+    <!-- Print Settings Modal -->
+    <div id="printSettingsModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl relative">
+            <button onclick="toggleModal('printSettingsModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Print Document</h2>
+            <div class="space-y-4 mb-6">
+                <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Company / Org Name</label><input type="text" id="inputCompName" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Supervisor Name</label><input type="text" id="inputSupName" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                    <div><label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Supervisor Title</label><input type="text" id="inputSupTitle" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white"></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 mt-4">Select Weeks to Include</label>
+                    <div id="weekCheckboxes" class="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 bg-slate-50 dark:bg-slate-900"></div>
+                </div>
+            </div>
+            <button onclick="executePrint()" class="w-full bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors">Generate PDF</button>
+        </div>
+    </div>
+
+    <!-- Delete Confirmations & Logout -->
+    <div id="deleteConfirmModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Delete Log?</h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-6 text-sm">This action cannot be undone.</p>
+            <div class="flex gap-3"><button onclick="toggleModal('deleteConfirmModal')" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg font-semibold transition-colors">Cancel</button><button id="confirmDeleteBtn" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors">Delete</button></div>
+        </div>
+    </div>
+    
+    <div id="deleteWeekConfirmModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Delete Entire Week?</h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-6 text-sm">You are about to delete all logs for <span id="deleteWeekTargetName" class="font-bold text-slate-800 dark:text-slate-200"></span>. This cannot be undone.</p>
+            <div class="flex gap-3"><button onclick="toggleModal('deleteWeekConfirmModal')" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg font-semibold transition-colors">Cancel</button><button onclick="executeDeleteWeek()" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors">Delete Week</button></div>
+        </div>
+    </div>
+
+    <div id="logoutConfirmModal" class="modal-overlay">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Sign out</h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-6 text-sm">Are you sure you want to log out?</p>
+            <div class="flex gap-3"><button onclick="toggleModal('logoutConfirmModal')" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg font-semibold transition-colors">Cancel</button><a href="/logout" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors inline-block text-center leading-loose">Logout</a></div>
+        </div>
+    </div>
 
     <!-- PRINT TEMPLATE -->
     <div class="print-only official-doc">
@@ -116,143 +240,7 @@
         <div id="print-data-container"></div>
     </div>
 </div>
-</div>
-</div>
 
-<!-- === MODALS === -->
-
-<!-- Onboarding / Edit Profile Modal -->
-<div id="onboardingModal" class="modal" style="background: rgba(15, 23, 42, 0.9);">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md m-4">
-        <div class="flex justify-between items-center mb-2">
-            <h3 id="onboardModalTitle" class="text-2xl font-black text-slate-900 dark:text-white">Welcome to DTR</h3>
-            <button onclick="toggleModal('onboardingModal')" class="text-slate-400 hover:text-slate-600 hidden" id="onboardCloseBtn">✕</button>
-        </div>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Let's set up your profile for your official documents.</p>
-        <div class="space-y-4 mb-6">
-            <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Full Name</label><input type="text" id="onboardName" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Position / Title</label><input type="text" id="onboardTitle" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Shift Start</label><input type="text" id="onboardShiftStart" class="flatpickr-time w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-                <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Shift End</label><input type="text" id="onboardShiftEnd" class="flatpickr-time w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            </div>
-        </div>
-        <button onclick="saveOnboarding()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg">Save Profile</button>
-    </div>
-</div>
-
-<!-- Logout Confirm Modal -->
-<div id="logoutConfirmModal" class="modal">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm m-4 text-center">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Sign Out?</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Are you sure you want to log out of DTR?</p>
-        <div class="flex gap-3 justify-center">
-            <button onclick="toggleModal('logoutConfirmModal')" class="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-xl w-full">Cancel</button>
-            <a href="/logout" class="bg-slate-900 hover:bg-black text-white font-semibold py-2 px-4 rounded-xl w-full text-center">Log Out</a>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Week Confirm Modal -->
-<div id="deleteWeekConfirmModal" class="modal">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm m-4 text-center">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Entire Week?</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Are you sure you want to delete <span id="deleteWeekTargetName" class="font-bold text-red-500"></span>? This will permanently delete all logs inside it.</p>
-        <div class="flex gap-3 justify-center">
-            <button onclick="toggleModal('deleteWeekConfirmModal')" class="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-xl w-full">Cancel</button>
-            <button onclick="executeDeleteWeek()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl w-full">Delete Week</button>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Single Log Modal -->
-<div id="editLogModal" class="modal">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md m-4">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold dark:text-white">Edit Log</h3>
-            <button onclick="toggleModal('editLogModal')" class="text-slate-400 hover:text-slate-600">✕</button>
-        </div>
-        <input type="hidden" id="editLogId">
-        <div class="space-y-4">
-            <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Practicum Week</label><input type="text" id="eWeek" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Date</label><input type="text" id="eDate" class="flatpickr-date w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Time In</label><input type="text" id="eTimeIn" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-                <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Time Out</label><input type="text" id="eTimeOut" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            </div>
-            <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Lunch Break (Mins)</label><input type="number" id="eLunch" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <button onclick="submitEditLog()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl mt-4">Save Changes</button>
-        </div>
-    </div>
-</div>
-
-<!-- (Keep existing Single Log, Weekly Batch, Print, Delete Log Modals) -->
-<!-- Single Log Modal -->
-<div id="singleLogModal" class="modal">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md m-4">
-        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold dark:text-white">Add Daily Log</h3><button onclick="toggleModal('singleLogModal')" class="text-slate-400 hover:text-slate-600">✕</button></div>
-        <div class="space-y-4">
-            <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Practicum Week</label><input type="text" id="sWeek" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Date</label><input type="text" id="sDate" class="flatpickr-date w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div class="flex items-center mb-2 mt-2"><input type="checkbox" id="sNa" onchange="toggleSingleNA()" class="w-4 h-4 text-blue-600"><label for="sNa" class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Mark as N/A</label></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Time In</label><input type="text" id="sTimeIn" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-                <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Time Out</label><input type="text" id="sTimeOut" class="flatpickr-time w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            </div>
-            <div><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Lunch (Mins)</label><input type="number" id="sLunch" value="60" min="0" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <button onclick="submitSingleLog()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl mt-4">Save Record</button>
-        </div>
-    </div>
-</div>
-
-<!-- Weekly Batch Modal -->
-<div id="weeklyLogModal" class="modal">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-4xl m-4">
-        <div class="flex justify-between items-center mb-6"><h3 class="text-xl font-bold dark:text-white">Batch Weekly Entry</h3><button onclick="toggleModal('weeklyLogModal')" class="text-slate-400">✕</button></div>
-        <div class="flex flex-col md:flex-row gap-4 mb-4">
-            <div class="w-full md:w-1/2"><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Week Label</label><input type="text" id="bWeek" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div class="w-full md:w-1/2"><label class="text-sm font-semibold text-slate-600 dark:text-slate-400 block mb-1">Start Date (Monday)</label><input type="text" id="wStartDate" class="flatpickr-date w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-        </div>
-        <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-x-auto">
-            <div class="grid grid-cols-12 gap-2 mb-2 text-sm font-semibold text-slate-500 dark:text-slate-400 min-w-[600px]"><div class="col-span-3">Day</div><div class="col-span-3">Time In</div><div class="col-span-3">Time Out</div><div class="col-span-3">Lunch (Mins)</div></div>
-            <div id="batchRows" class="space-y-3 min-w-[600px]"></div>
-        </div>
-        <button onclick="submitBatchLogs()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl mt-6">Save Full Week</button>
-    </div>
-</div>
-
-<!-- Delete Single Confirm Modal -->
-<div id="deleteConfirmModal" class="modal">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm m-4 text-center">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Record?</h3>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">This action cannot be undone.</p>
-        <div class="flex gap-3 justify-center">
-            <button onclick="toggleModal('deleteConfirmModal')" class="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-4 rounded-xl hover:bg-slate-50 w-full">Cancel</button>
-            <button id="confirmDeleteBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-xl shadow-sm w-full">Delete</button>
-        </div>
-    </div>
-</div>
-
-<!-- Print Settings Modal -->
-<div id="printSettingsModal" class="modal no-print">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-xl m-4 max-h-[90vh] overflow-y-auto">
-        <h3 class="text-xl font-bold mb-1 dark:text-white">Print Document</h3>
-        <div class="space-y-4 mb-6 mt-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Company Name</label><input type="text" id="inputCompName" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Supervisor Name</label><input type="text" id="inputSupName" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-                <div><label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase block mb-1">Supervisor Title</label><input type="text" id="inputSupTitle" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none"></div>
-            </div>
-        </div>
-        <label class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide block mb-2">Select Weeks to Print</label>
-        <div class="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-2 mb-6 max-h-48 overflow-y-auto" id="weekCheckboxes"></div>
-        <div class="flex gap-3">
-            <button onclick="executePrint()" class="flex-1 bg-slate-800 dark:bg-slate-600 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl">Generate PDF</button>
-            <button onclick="toggleModal('printSettingsModal')" class="flex-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold py-3 px-4 rounded-xl">Cancel</button>
-        </div>
-    </div>
-</div>
-
-<script src="/static/js/app.js"></script>
+<script src="/static/js/app.js?version=final_update"></script>
 </body>
 </html>
