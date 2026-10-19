@@ -30,7 +30,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e =
     }
 });
 
-// --- GLOBAL VARIABLES ---
+// --- GLOBAL VARIABLES & SCHEDULE ENGINE ---
 let googleProfileName = "";
 let allLogs = [];
 let groupedLogs = {};
@@ -38,6 +38,21 @@ let activeDeleteId = null;
 let activeDeleteWeek = null;
 let userProfile = { name: "", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
 let sortOrderDesc = false;
+
+// Pull user's specific working days and custom holidays from LocalStorage
+let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; // Default: Mon-Fri
+let customHolidays = JSON.parse(localStorage.getItem('dtr_custom_holidays')) || [];
+
+const defaultPHHolidays = [
+    { date: "01-01", name: "New Year's Day" },
+    { date: "04-09", name: "Araw ng Kagitingan" },
+    { date: "05-01", name: "Labor Day" },
+    { date: "06-12", name: "Independence Day" },
+    { date: "08-26", name: "National Heroes Day" },
+    { date: "11-30", name: "Bonifacio Day" },
+    { date: "12-25", name: "Christmas Day" },
+    { date: "12-30", name: "Rizal Day" }
+];
 
 // --- UTILITIES ---
 function formatHM(decimalHours) {
@@ -142,6 +157,74 @@ function applyInternProfile(name, title) {
     if (document.getElementById('userName')) document.getElementById('userName').innerText = name;
     if (document.getElementById('headerInternTitle')) document.getElementById('headerInternTitle').innerText = title;
 }
+
+// --- CALENDAR & HOLIDAY SETTINGS ---
+function openCalendarModal() {
+    renderWorkDays();
+    renderHolidays();
+    toggleModal('calendarModal');
+}
+
+function renderWorkDays() {
+    const days = [ {v:1, l:'Mon'}, {v:2, l:'Tue'}, {v:3, l:'Wed'}, {v:4, l:'Thu'}, {v:5, l:'Fri'}, {v:6, l:'Sat'}, {v:0, l:'Sun'} ];
+    const container = document.getElementById('workDaysCheckboxes');
+    container.innerHTML = days.map(d => `
+        <label class="flex items-center gap-1.5 p-2 px-3 bg-slate-100 dark:bg-slate-700 rounded-lg cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+            <input type="checkbox" class="work-day-cb w-4 h-4 text-blue-600 focus:ring-blue-500 rounded" value="${d.v}" ${workDays.includes(d.v) ? 'checked' : ''}>
+            <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">${d.l}</span>
+        </label>
+    `).join('');
+}
+
+function renderHolidays() {
+    const container = document.getElementById('holidayList');
+    let html = '';
+    
+    defaultPHHolidays.forEach(h => {
+        html += `<li class="flex justify-between items-center text-slate-500 dark:text-slate-400 p-2"><span class="font-semibold">${h.name}</span><span class="text-xs font-medium bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md">${h.date} (Annual)</span></li>`;
+    });
+    
+    customHolidays.forEach((h, i) => {
+        html += `<li class="flex justify-between items-center text-blue-700 dark:text-blue-400 p-2 border-t border-slate-200 dark:border-slate-700">
+            <span class="font-bold">${h.name}</span>
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-md">${h.date}</span>
+                <button onclick="removeCustomHoliday(${i})" class="text-red-500 hover:text-red-700 dark:hover:text-red-400 font-bold px-1">&times;</button>
+            </div>
+        </li>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+function addCustomHoliday() {
+    const dateVal = document.getElementById('customHolDate').value;
+    const nameVal = document.getElementById('customHolName').value || "Special Holiday";
+    if (!dateVal) return alert("Please select a date for the holiday/absence.");
+    
+    customHolidays.push({ date: dateVal, name: nameVal });
+    
+    document.getElementById('customHolDate')._flatpickr.clear();
+    document.getElementById('customHolName').value = "";
+    renderHolidays();
+}
+
+function removeCustomHoliday(index) {
+    customHolidays.splice(index, 1);
+    renderHolidays();
+}
+
+function saveCalendarSettings() {
+    const cbs = document.querySelectorAll('.work-day-cb:checked');
+    workDays = Array.from(cbs).map(cb => parseInt(cb.value));
+    
+    localStorage.setItem('dtr_workdays', JSON.stringify(workDays));
+    localStorage.setItem('dtr_custom_holidays', JSON.stringify(customHolidays));
+    
+    toggleModal('calendarModal');
+    updateProgressTracker();
+}
+
 
 // --- MODALS & LOGO ---
 function toggleModal(id) {
@@ -296,8 +379,6 @@ async function updateProgressTracker() {
 }
 
 function predictCompletionDate(remainingHours) {
-    const phHolidays = ["01-01", "04-09", "05-01", "06-12", "08-26", "11-30", "12-25", "12-30"];
-    
     let dailyNetHours = parseFloat(calculateHours(userProfile.shift_start, userProfile.shift_end, 60));
     if (isNaN(dailyNetHours) || dailyNetHours <= 0) dailyNetHours = 8; 
 
@@ -307,9 +388,18 @@ function predictCompletionDate(remainingHours) {
     while (daysNeeded > 0) {
         currentDate.setDate(currentDate.getDate() + 1);
         const dayOfWeek = currentDate.getDay();
-        const mmdd = String(currentDate.getMonth() + 1).padStart(2, '0') + "-" + String(currentDate.getDate()).padStart(2, '0');
         
-        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !phHolidays.includes(mmdd)) {
+        const yyyy = currentDate.getFullYear();
+        const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(currentDate.getDate()).padStart(2, '0');
+        
+        const yyyymmdd = `${yyyy}-${mm}-${dd}`;
+        const mmdd = `${mm}-${dd}`;
+        
+        const isAnnualHoliday = defaultPHHolidays.some(h => h.date === mmdd);
+        const isCustomHoliday = customHolidays.some(h => h.date === yyyymmdd);
+
+        if (workDays.includes(dayOfWeek) && !isAnnualHoliday && !isCustomHoliday) {
             daysNeeded--;
         }
     }
@@ -635,7 +725,6 @@ function executePrint() {
         container.innerHTML += pageHtml;
     }
     
-    // Close the print modal and wait 300ms for the animation before printing
     toggleModal('printSettingsModal');
     setTimeout(() => {
         window.print();
