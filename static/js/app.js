@@ -39,8 +39,7 @@ let activeDeleteWeek = null;
 let userProfile = { name: "", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
 let sortOrderDesc = false;
 
-// Pull user's specific working days and custom holidays from LocalStorage
-let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; // Default: Mon-Fri
+let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; 
 let customHolidays = JSON.parse(localStorage.getItem('dtr_custom_holidays')) || [];
 
 const defaultPHHolidays = [
@@ -72,6 +71,7 @@ function cleanWeekStr(str) {
 
 // --- INITIALIZE PICKERS & UI ---
 flatpickr(".flatpickr-date", { altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" });
+flatpickr(".flatpickr-range", { mode: "range", altInput: true, altFormat: "F j, Y", dateFormat: "Y-m-d" });
 const timeConfig = { enableTime: true, noCalendar: true, dateFormat: "h:i K", time_24hr: false };
 flatpickr(".flatpickr-time", timeConfig);
 
@@ -158,7 +158,7 @@ function applyInternProfile(name, title) {
     if (document.getElementById('headerInternTitle')) document.getElementById('headerInternTitle').innerText = title;
 }
 
-// --- CALENDAR & HOLIDAY SETTINGS ---
+// --- CALENDAR & MULTI-DATE HOLIDAY SETTINGS ---
 function openCalendarModal() {
     renderWorkDays();
     renderHolidays();
@@ -197,14 +197,31 @@ function renderHolidays() {
     container.innerHTML = html;
 }
 
-function addCustomHoliday() {
-    const dateVal = document.getElementById('customHolDate').value;
-    const nameVal = document.getElementById('customHolName').value || "Special Holiday";
-    if (!dateVal) return alert("Please select a date for the holiday/absence.");
+function addCustomHolidays() {
+    const dateRangeStr = document.getElementById('customHolDates').value;
+    const nameVal = document.getElementById('customHolName').value || "Special Event";
+    if (!dateRangeStr) return alert("Please select a date or date range.");
+
+    // Flatpickr range returns dates separated by " to "
+    const dates = dateRangeStr.split(" to ");
+    let startDate = new Date(dates[0]);
+    let endDate = dates[1] ? new Date(dates[1]) : new Date(dates[0]);
+
+    let curr = new Date(startDate);
+    while (curr <= endDate) {
+        const yyyy = curr.getFullYear();
+        const mm = String(curr.getMonth() + 1).padStart(2, '0');
+        const dd = String(curr.getDate()).padStart(2, '0');
+        const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+        // Prevent duplicate entries for the exact same date
+        if (!customHolidays.some(h => h.date === formattedDate)) {
+            customHolidays.push({ date: formattedDate, name: nameVal });
+        }
+        curr.setDate(curr.getDate() + 1);
+    }
     
-    customHolidays.push({ date: dateVal, name: nameVal });
-    
-    document.getElementById('customHolDate')._flatpickr.clear();
+    document.getElementById('customHolDates')._flatpickr.clear();
     document.getElementById('customHolName').value = "";
     renderHolidays();
 }
@@ -224,7 +241,6 @@ function saveCalendarSettings() {
     toggleModal('calendarModal');
     updateProgressTracker();
 }
-
 
 // --- MODALS & LOGO ---
 function toggleModal(id) {

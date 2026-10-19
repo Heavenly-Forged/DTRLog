@@ -59,15 +59,6 @@
         </div>
     </header>
 
-    <!-- Search & Filter Bar -->
-    <div class="no-print flex flex-col md:flex-row gap-4 mb-8">
-        <input type="text" id="searchInput" onkeyup="filterLogs()" placeholder="Search by date (e.g. 2026-09) or week label..." class="flex-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-        <button onclick="toggleSortOrder()" id="sortBtn" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-4 px-6 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
-            <span id="sortBtnText">Sort: Oldest First</span>
-        </button>
-    </div>
-
     <!-- OJT Progress Tracker -->
     <div class="no-print bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8 mb-8 flex flex-col md:flex-row gap-8 justify-between items-center">
         <div class="w-full md:w-1/3">
@@ -103,6 +94,15 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Search & Filter Bar (Moved below tracker) -->
+    <div class="no-print flex flex-col md:flex-row gap-4 mb-8">
+        <input type="text" id="searchInput" onkeyup="filterLogs()" placeholder="Search by date (e.g. 2026-09) or week label..." class="flex-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+        <button onclick="toggleSortOrder()" id="sortBtn" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-4 px-6 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+            <span id="sortBtnText">Sort: Oldest First</span>
+        </button>
     </div>
 
     <!-- Dashboard Content -->
@@ -141,17 +141,19 @@
             </div>
 
             <div class="mb-6 pt-6 border-t border-slate-100 dark:border-slate-700">
-                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Add Special Holiday or Absence</label>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">e.g. ASEAN Summit, Typhoon, or personal leave.</p>
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Add Multiple Date Exception (ASEAN, Typhoon, Leave)</label>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Select a date range or individual dates.</p>
+                <div class="flex flex-col sm:flex-row gap-2 mb-2">
+                    <input type="text" id="customHolDates" class="flatpickr-range flex-1 p-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="Select single date or date range">
+                </div>
                 <div class="flex gap-2">
-                    <input type="text" id="customHolDate" class="flatpickr-date w-1/3 p-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="Date">
-                    <input type="text" id="customHolName" class="w-auto flex-1 p-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="Reason (e.g. ASEAN)">
-                    <button onclick="addCustomHoliday()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 rounded-xl transition-colors text-sm">Add</button>
+                    <input type="text" id="customHolName" class="flex-1 p-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white" placeholder="Event Reason (e.g. ASEAN Summit)">
+                    <button onclick="addCustomHolidays()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 rounded-xl transition-colors text-sm whitespace-nowrap">Add Dates</button>
                 </div>
             </div>
 
             <div>
-                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Recognized Holidays</label>
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Recognized Exceptions & Holidays</label>
                 <ul id="holidayList" class="space-y-1 text-sm max-h-40 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 p-3 rounded-xl"></ul>
             </div>
 
@@ -301,6 +303,6 @@
     }
 </style>
 
-<script src="/static/js/app.js?version=schedule_engine"></script>
+<script src="/static/js/app.js?version=multi_date_fix"></script>
 </body>
 </html>
