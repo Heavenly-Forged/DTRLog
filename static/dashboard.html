@@ -69,6 +69,13 @@
                 <input type="number" id="targetHoursInput" class="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500" oninput="updateProgressTracker()">
             </div>
         </div>
+        <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Count Whole Hours Only (Ignore Mins)</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="wholeHoursToggle" class="sr-only peer" onchange="toggleWholeHours()">
+                <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+        </div>
         <div class="w-full md:w-2/3 flex flex-col sm:flex-row items-center gap-8">
             <div class="relative w-40 h-40 flex items-center justify-center rounded-full shrink-0" id="circularProgressWrapper" style="background: conic-gradient(#10b981 0%, #e2e8f0 0%);">
                 <div class="absolute w-32 h-32 bg-white dark:bg-slate-800 rounded-full flex flex-col items-center justify-center">
@@ -303,6 +310,6 @@
     }
 </style>
 
-<script src="/static/js/app.js?version=multi_date_fix"></script>
+<script src="/static/js/app.js?version=whole_hours"></script>
 </body>
 </html>

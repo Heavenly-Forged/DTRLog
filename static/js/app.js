@@ -38,6 +38,7 @@ let activeDeleteId = null;
 let activeDeleteWeek = null;
 let userProfile = { name: "", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
 let sortOrderDesc = false;
+let wholeHoursOnly = JSON.parse(localStorage.getItem('dtr_whole_hours')) || false;
 
 let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; 
 let customHolidays = JSON.parse(localStorage.getItem('dtr_custom_holidays')) || [];
@@ -315,6 +316,12 @@ function parseTimeAMPM(timeStr) {
     return { h: hours, m: parseInt(minutes, 10) };
 }
 
+function toggleWholeHours() {
+    wholeHoursOnly = document.getElementById('wholeHoursToggle').checked;
+    localStorage.setItem('dtr_whole_hours', JSON.stringify(wholeHoursOnly));
+    updateProgressTracker();
+}
+
 function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (timeIn === "N/A" || timeOut === "N/A") return 0;
     const inT = parseTimeAMPM(timeIn);
@@ -337,7 +344,14 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (dOut <= dIn) return "0.00";
     
     let diffHours = ((dOut - dIn) / (1000 * 60 * 60)) - (lunchMins / 60);
-    return Math.max(0, diffHours).toFixed(2);
+    diffHours = Math.max(0, diffHours);
+
+    // If whole hours toggle is active, truncate the decimal minutes away
+    if (wholeHoursOnly) {
+        diffHours = Math.floor(diffHours);
+    }
+
+    return diffHours.toFixed(2);
 }
 
 // --- PROGRESS & PREDICTION TRACKER ---
@@ -762,9 +776,12 @@ window.onload = async () => {
     } catch (e) {
         console.error("Auth skipped or failed:", e);
     }
-    
+    const toggleEl = document.getElementById('wholeHoursToggle');
+    if (toggleEl) {
+        toggleEl.checked = wholeHoursOnly;
+    }
+
     if (document.getElementById('dashboard-views')) fetchLogs();
-    
     if (document.getElementById('inputCompName')) document.getElementById('inputCompName').value = localStorage.getItem('dtr_comp') || "Company Name";
     if (document.getElementById('inputSupName')) document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
     if (document.getElementById('inputSupTitle')) document.getElementById('inputSupTitle').value = localStorage.getItem('dtr_title') || "Supervisor Title";
