@@ -38,10 +38,10 @@ let activeDeleteId = null;
 let activeDeleteWeek = null;
 let userProfile = { name: "", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
 let sortOrderDesc = false;
-let wholeHoursOnly = JSON.parse(localStorage.getItem('dtr_whole_hours')) || false;
 
 let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; 
 let customHolidays = JSON.parse(localStorage.getItem('dtr_custom_holidays')) || [];
+let wholeHoursOnly = JSON.parse(localStorage.getItem('dtr_whole_hours')) || false;
 let showingArchived = false;
 let archivedWeeks = JSON.parse(localStorage.getItem('dtr_archived_weeks')) || [];
 
@@ -55,32 +55,6 @@ const defaultPHHolidays = [
     { date: "12-25", name: "Christmas Day" },
     { date: "12-30", name: "Rizal Day" }
 ];
-
-// --- ARCHIVE ---
-function toggleArchiveView() {
-    showingArchived = !showingArchived;
-    const btnText = document.getElementById('archiveBtnText');
-    const searchInput = document.getElementById('searchInput');
-    
-    if (showingArchived) {
-        btnText.innerText = "Back to Dashboard";
-        if (searchInput) searchInput.placeholder = "Search archives...";
-    } else {
-        btnText.innerText = "View Archive";
-        if (searchInput) searchInput.placeholder = "Search by date (e.g. 2026-09) or week label...";
-    }
-    renderDashboard();
-}
-
-function toggleWeekArchive(weekName) {
-    if (archivedWeeks.includes(weekName)) {
-        archivedWeeks = archivedWeeks.filter(w => w !== weekName);
-    } else {
-        archivedWeeks.push(weekName);
-    }
-    localStorage.setItem('dtr_archived_weeks', JSON.stringify(archivedWeeks));
-    renderDashboard();
-}
 
 // --- UTILITIES ---
 function formatHM(decimalHours) {
@@ -124,7 +98,12 @@ async function fetchProfile() {
         const res = await fetch('/api/profile');
         if (res.ok) {
             userProfile = await res.json();
-            if (!userProfile.name && googleProfileName) userProfile.name = googleProfileName;
+            if (!userProfile.name || userProfile.name === "EMPTY_STRING") {
+                userProfile.name = googleProfileName || "Beringuela Jiro";
+            }
+            if (!userProfile.title) {
+                userProfile.title = "Project Manager";
+            }
             
             applyInternProfile(userProfile.name, userProfile.title);
             
@@ -151,8 +130,9 @@ async function saveProfileToCloud(updatedData) {
 }
 
 function checkOnboarding(googleName) {
-    if (!userProfile.name) {
-        document.getElementById('onboardName').value = googleName;
+    if (!userProfile.name || userProfile.name === "EMPTY_STRING") {
+        document.getElementById('onboardName').value = googleName || "Beringuela Jiro";
+        document.getElementById('onboardTitle').value = "Project Manager";
         document.getElementById('onboardModalTitle').innerText = "Welcome to DTR";
         document.getElementById('onboardCloseBtn').classList.add('hidden');
         toggleModal('onboardingModal');
@@ -170,7 +150,7 @@ function openEditProfile() {
 }
 
 async function saveOnboarding() {
-    const name = document.getElementById('onboardName').value || googleProfileName;
+    const name = document.getElementById('onboardName').value || googleProfileName || "Beringuela Jiro";
     const title = document.getElementById('onboardTitle').value || "Project Manager";
     const shiftStart = document.getElementById('onboardShiftStart').value || "07:30 AM";
     const shiftEnd = document.getElementById('onboardShiftEnd').value || "06:30 PM";
@@ -185,6 +165,39 @@ async function saveOnboarding() {
 function applyInternProfile(name, title) {
     if (document.getElementById('userName')) document.getElementById('userName').innerText = name;
     if (document.getElementById('headerInternTitle')) document.getElementById('headerInternTitle').innerText = title;
+}
+
+// --- CALCULATION & TOGGLES ---
+function toggleWholeHours() {
+    wholeHoursOnly = document.getElementById('wholeHoursToggle').checked;
+    localStorage.setItem('dtr_whole_hours', JSON.stringify(wholeHoursOnly));
+    updateProgressTracker();
+    renderDashboard();
+}
+
+function toggleArchiveView() {
+    showingArchived = !showingArchived;
+    const btnText = document.getElementById('archiveBtnText');
+    const searchInput = document.getElementById('searchInput');
+    
+    if (showingArchived) {
+        btnText.innerText = "Back to Dashboard";
+        if (searchInput) searchInput.placeholder = "Search archives...";
+    } else {
+        btnText.innerText = "View Archive";
+        if (searchInput) searchInput.placeholder = "Search by date (e.g. 2026-09) or week label...";
+    }
+    renderDashboard();
+}
+
+function toggleWeekArchive(weekName) {
+    if (archivedWeeks.includes(weekName)) {
+        archivedWeeks = archivedWeeks.filter(w => w !== weekName);
+    } else {
+        archivedWeeks.push(weekName);
+    }
+    localStorage.setItem('dtr_archived_weeks', JSON.stringify(archivedWeeks));
+    renderDashboard();
 }
 
 // --- CALENDAR & MULTI-DATE HOLIDAY SETTINGS ---
@@ -231,7 +244,6 @@ function addCustomHolidays() {
     const nameVal = document.getElementById('customHolName').value || "Special Event";
     if (!dateRangeStr) return alert("Please select a date or date range.");
 
-    // Flatpickr range returns dates separated by " to "
     const dates = dateRangeStr.split(" to ");
     let startDate = new Date(dates[0]);
     let endDate = dates[1] ? new Date(dates[1]) : new Date(dates[0]);
@@ -243,7 +255,6 @@ function addCustomHolidays() {
         const dd = String(curr.getDate()).padStart(2, '0');
         const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-        // Prevent duplicate entries for the exact same date
         if (!customHolidays.some(h => h.date === formattedDate)) {
             customHolidays.push({ date: formattedDate, name: nameVal });
         }
@@ -344,12 +355,6 @@ function parseTimeAMPM(timeStr) {
     return { h: hours, m: parseInt(minutes, 10) };
 }
 
-function toggleWholeHours() {
-    wholeHoursOnly = document.getElementById('wholeHoursToggle').checked;
-    localStorage.setItem('dtr_whole_hours', JSON.stringify(wholeHoursOnly));
-    updateProgressTracker();
-}
-
 function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (timeIn === "N/A" || timeOut === "N/A") return 0;
     const inT = parseTimeAMPM(timeIn);
@@ -374,7 +379,6 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     let diffHours = ((dOut - dIn) / (1000 * 60 * 60)) - (lunchMins / 60);
     diffHours = Math.max(0, diffHours);
 
-    // If whole hours toggle is active, truncate the decimal minutes away
     if (wholeHoursOnly) {
         diffHours = Math.floor(diffHours);
     }
@@ -508,7 +512,6 @@ function renderDashboard() {
     
     let weekKeys = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
     
-    // Filter keys based on whether we are viewing the archive or the active dashboard
     weekKeys = weekKeys.filter(week => showingArchived ? archivedWeeks.includes(week) : !archivedWeeks.includes(week));
 
     if (weekKeys.length === 0) {
@@ -557,8 +560,8 @@ function renderDashboard() {
                 <td class="px-4 py-3 text-center text-slate-500 dark:text-slate-400">${lunchDisplay}</td>
                 <td class="px-4 py-3">${hrsDisplay}</td>
                 <td class="px-4 py-3 text-right">
-                    <button onclick="openEditLog(${log.id})" class="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors mr-2"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="root" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
-                    <button onclick="confirmDelete(${log.id})" class="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2r2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                    <button onclick="openEditLog(${log.id})" class="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors mr-2"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+                    <button onclick="confirmDelete(${log.id})" class="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                 </td>
             </tr>`;
         });
@@ -824,12 +827,14 @@ window.onload = async () => {
     } catch (e) {
         console.error("Auth skipped or failed:", e);
     }
+    
     const toggleEl = document.getElementById('wholeHoursToggle');
     if (toggleEl) {
         toggleEl.checked = wholeHoursOnly;
     }
 
     if (document.getElementById('dashboard-views')) fetchLogs();
+    
     if (document.getElementById('inputCompName')) document.getElementById('inputCompName').value = localStorage.getItem('dtr_comp') || "Company Name";
     if (document.getElementById('inputSupName')) document.getElementById('inputSupName').value = localStorage.getItem('dtr_sup') || "";
     if (document.getElementById('inputSupTitle')) document.getElementById('inputSupTitle').value = localStorage.getItem('dtr_title') || "Supervisor Title";
