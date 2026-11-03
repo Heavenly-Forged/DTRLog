@@ -42,6 +42,8 @@ let wholeHoursOnly = JSON.parse(localStorage.getItem('dtr_whole_hours')) || fals
 
 let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; 
 let customHolidays = JSON.parse(localStorage.getItem('dtr_custom_holidays')) || [];
+let showingArchived = false;
+let archivedWeeks = JSON.parse(localStorage.getItem('dtr_archived_weeks')) || [];
 
 const defaultPHHolidays = [
     { date: "01-01", name: "New Year's Day" },
@@ -53,6 +55,32 @@ const defaultPHHolidays = [
     { date: "12-25", name: "Christmas Day" },
     { date: "12-30", name: "Rizal Day" }
 ];
+
+// --- ARCHIVE ---
+function toggleArchiveView() {
+    showingArchived = !showingArchived;
+    const btnText = document.getElementById('archiveBtnText');
+    const searchInput = document.getElementById('searchInput');
+    
+    if (showingArchived) {
+        btnText.innerText = "Back to Dashboard";
+        if (searchInput) searchInput.placeholder = "Search archives...";
+    } else {
+        btnText.innerText = "View Archive";
+        if (searchInput) searchInput.placeholder = "Search by date (e.g. 2026-09) or week label...";
+    }
+    renderDashboard();
+}
+
+function toggleWeekArchive(weekName) {
+    if (archivedWeeks.includes(weekName)) {
+        archivedWeeks = archivedWeeks.filter(w => w !== weekName);
+    } else {
+        archivedWeeks.push(weekName);
+    }
+    localStorage.setItem('dtr_archived_weeks', JSON.stringify(archivedWeeks));
+    renderDashboard();
+}
 
 // --- UTILITIES ---
 function formatHM(decimalHours) {
@@ -479,13 +507,33 @@ function renderDashboard() {
     container.innerHTML = '';
     
     let weekKeys = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+    
+    // Filter keys based on whether we are viewing the archive or the active dashboard
+    weekKeys = weekKeys.filter(week => showingArchived ? archivedWeeks.includes(week) : !archivedWeeks.includes(week));
+
+    if (weekKeys.length === 0) {
+        container.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-700 shadow-sm">
+                <p class="text-slate-500 dark:text-slate-400 font-medium">${showingArchived ? "No archived weeks found." : "No active logs found. Add a daily log or batch entry to get started!"}</p>
+            </div>`;
+        return;
+    }
+
     if (sortOrderDesc) weekKeys.reverse();
     
     weekKeys.forEach(week => {
+        const isArchived = archivedWeeks.includes(week);
         let html = `<div class="week-group-container bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
             <div class="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h3 class="font-bold text-slate-800 dark:text-white">${week}</h3>
-                <button onclick="confirmDeleteWeek('${week}')" class="text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg transition-colors">Delete Week</button>
+                <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    ${week} ${isArchived ? '<span class="text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-md">Archived</span>' : ''}
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleWeekArchive('${week}')" class="text-sm font-medium ${isArchived ? 'text-blue-500 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/20' : 'text-amber-500 hover:text-amber-700 bg-amber-50 dark:bg-amber-900/20'} px-3 py-1 rounded-lg transition-colors">
+                        ${isArchived ? 'Restore' : 'Archive Week'}
+                    </button>
+                    <button onclick="confirmDeleteWeek('${week}')" class="text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg transition-colors">Delete Week</button>
+                </div>
             </div>
             <div class="p-6 overflow-x-auto">
                 <table class="w-full text-sm text-left">
@@ -509,8 +557,8 @@ function renderDashboard() {
                 <td class="px-4 py-3 text-center text-slate-500 dark:text-slate-400">${lunchDisplay}</td>
                 <td class="px-4 py-3">${hrsDisplay}</td>
                 <td class="px-4 py-3 text-right">
-                    <button onclick="openEditLog(${log.id})" class="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors mr-2"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
-                    <button onclick="confirmDelete(${log.id})" class="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                    <button onclick="openEditLog(${log.id})" class="text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors mr-2"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="root" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+                    <button onclick="confirmDelete(${log.id})" class="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"><svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2r2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                 </td>
             </tr>`;
         });
