@@ -36,7 +36,7 @@ let allLogs = [];
 let groupedLogs = {};
 let activeDeleteId = null;
 let activeDeleteWeek = null;
-let userProfile = { name: "", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
+let userProfile = { name: "Beringuela Jiro", title: "Project Manager", shift_start: "07:30 AM", shift_end: "06:30 PM", target_hours: 0, logo_data: null };
 let sortOrderDesc = false;
 
 let workDays = JSON.parse(localStorage.getItem('dtr_workdays')) || [1, 2, 3, 4, 5]; 
@@ -44,6 +44,7 @@ let customHolidays = JSON.parse(localStorage.getItem('dtr_custom_holidays')) || 
 let wholeHoursOnly = JSON.parse(localStorage.getItem('dtr_whole_hours')) || false;
 let showingArchived = false;
 let archivedWeeks = JSON.parse(localStorage.getItem('dtr_archived_weeks')) || [];
+let weekShiftOverrides = JSON.parse(localStorage.getItem('dtr_week_overrides')) || {};
 
 const defaultPHHolidays = [
     { date: "01-01", name: "New Year's Day" },
@@ -101,7 +102,7 @@ async function fetchProfile() {
             if (!userProfile.name || userProfile.name === "EMPTY_STRING") {
                 userProfile.name = googleProfileName || "Beringuela Jiro";
             }
-            if (!userProfile.title) {
+            if (!userProfile.title || userProfile.title === "EMPTY_STRING") {
                 userProfile.title = "Project Manager";
             }
             
@@ -122,6 +123,9 @@ async function fetchProfile() {
 
 async function saveProfileToCloud(updatedData) {
     userProfile = { ...userProfile, ...updatedData };
+    if (!userProfile.name || userProfile.name === "EMPTY_STRING") userProfile.name = "Beringuela Jiro";
+    if (!userProfile.title || userProfile.title === "EMPTY_STRING") userProfile.title = "Project Manager";
+
     await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,16 +135,14 @@ async function saveProfileToCloud(updatedData) {
 
 function checkOnboarding(googleName) {
     if (!userProfile.name || userProfile.name === "EMPTY_STRING") {
-        document.getElementById('onboardName').value = googleName || "Beringuela Jiro";
-        document.getElementById('onboardTitle').value = "Project Manager";
-        document.getElementById('onboardModalTitle').innerText = "Welcome to DTR";
-        document.getElementById('onboardCloseBtn').classList.add('hidden');
-        toggleModal('onboardingModal');
+        userProfile.name = googleName || "Beringuela Jiro";
+        userProfile.title = "Project Manager";
+        saveProfileToCloud(userProfile);
     }
 }
 
 function openEditProfile() {
-    document.getElementById('onboardName').value = userProfile.name || googleProfileName;
+    document.getElementById('onboardName').value = userProfile.name || "Beringuela Jiro";
     document.getElementById('onboardTitle').value = userProfile.title || "Project Manager";
     document.getElementById('onboardShiftStart').value = userProfile.shift_start || "07:30 AM";
     document.getElementById('onboardShiftEnd').value = userProfile.shift_end || "06:30 PM";
@@ -150,7 +152,7 @@ function openEditProfile() {
 }
 
 async function saveOnboarding() {
-    const name = document.getElementById('onboardName').value || googleProfileName || "Beringuela Jiro";
+    const name = document.getElementById('onboardName').value || "Beringuela Jiro";
     const title = document.getElementById('onboardTitle').value || "Project Manager";
     const shiftStart = document.getElementById('onboardShiftStart').value || "07:30 AM";
     const shiftEnd = document.getElementById('onboardShiftEnd').value || "06:30 PM";
@@ -167,7 +169,33 @@ function applyInternProfile(name, title) {
     if (document.getElementById('headerInternTitle')) document.getElementById('headerInternTitle').innerText = title;
 }
 
-// --- CALCULATION & TOGGLES ---
+// --- PER-WEEK SHIFT OVERRIDES & TOGGLES ---
+function openEditWeekModal(weekName) {
+    document.getElementById('editWeekNameInput').value = weekName;
+    document.getElementById('targetWeekName').innerText = weekName;
+    
+    const existing = weekShiftOverrides[weekName] || { start: userProfile.shift_start || "07:30 AM", end: userProfile.shift_end || "06:30 PM", lunch: 60 };
+    document.getElementById('weekShiftStart').value = existing.start;
+    document.getElementById('weekShiftEnd').value = existing.end;
+    document.getElementById('weekLunchMins').value = existing.lunch;
+    
+    toggleModal('editWeekModal');
+}
+
+function saveWeekShiftOverride() {
+    const weekName = document.getElementById('editWeekNameInput').value;
+    const start = document.getElementById('weekShiftStart').value || "08:00 AM";
+    const end = document.getElementById('weekShiftEnd').value || "05:00 PM";
+    const lunch = parseFloat(document.getElementById('weekLunchMins').value) || 60;
+    
+    weekShiftOverrides[weekName] = { start, end, lunch };
+    localStorage.setItem('dtr_week_overrides', JSON.stringify(weekShiftOverrides));
+    
+    toggleModal('editWeekModal');
+    renderDashboard();
+    updateProgressTracker();
+}
+
 function toggleWholeHours() {
     wholeHoursOnly = document.getElementById('wholeHoursToggle').checked;
     localStorage.setItem('dtr_whole_hours', JSON.stringify(wholeHoursOnly));
@@ -344,7 +372,7 @@ async function removeLogo() {
     if (fileInput) fileInput.value = '';
 }
 
-// --- CALCULATION LOGIC ---
+// --- CALCULATION LOGIC WITH WEEK SHIFT OVERRIDES ---
 function parseTimeAMPM(timeStr) {
     if (!timeStr || timeStr === "N/A") return null;
     const [time, modifier] = timeStr.split(' ');
@@ -355,12 +383,23 @@ function parseTimeAMPM(timeStr) {
     return { h: hours, m: parseInt(minutes, 10) };
 }
 
-function calculateHours(timeIn, timeOut, lunchMins = 0) {
+function calculateHoursForWeek(timeIn, timeOut, lunchMins = 0, weekLabel = "") {
     if (timeIn === "N/A" || timeOut === "N/A") return 0;
+    
+    let shiftStartStr = userProfile.shift_start || "07:30 AM";
+    let shiftEndStr = userProfile.shift_end || "06:30 PM";
+    let activeLunch = lunchMins;
+
+    if (weekLabel && weekShiftOverrides[weekLabel]) {
+        shiftStartStr = weekShiftOverrides[weekLabel].start;
+        shiftEndStr = weekShiftOverrides[weekLabel].end;
+        activeLunch = weekShiftOverrides[weekLabel].lunch;
+    }
+
     const inT = parseTimeAMPM(timeIn);
     const outT = parseTimeAMPM(timeOut);
-    const shiftStartT = parseTimeAMPM(userProfile.shift_start || "07:30 AM");
-    const shiftEndT = parseTimeAMPM(userProfile.shift_end || "06:30 PM");
+    const shiftStartT = parseTimeAMPM(shiftStartStr);
+    const shiftEndT = parseTimeAMPM(shiftEndStr);
 
     if (!inT || !outT) return 0;
     
@@ -376,7 +415,7 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     if (dOut > dShiftEnd) dOut = dShiftEnd;
     if (dOut <= dIn) return "0.00";
     
-    let diffHours = ((dOut - dIn) / (1000 * 60 * 60)) - (lunchMins / 60);
+    let diffHours = ((dOut - dIn) / (1000 * 60 * 60)) - (activeLunch / 60);
     diffHours = Math.max(0, diffHours);
 
     if (wholeHoursOnly) {
@@ -384,6 +423,10 @@ function calculateHours(timeIn, timeOut, lunchMins = 0) {
     }
 
     return diffHours.toFixed(2);
+}
+
+function calculateHours(timeIn, timeOut, lunchMins = 0) {
+    return calculateHoursForWeek(timeIn, timeOut, lunchMins, "");
 }
 
 // --- PROGRESS & PREDICTION TRACKER ---
@@ -399,7 +442,9 @@ async function updateProgressTracker() {
     }
     
     let totalHours = 0;
-    allLogs.forEach(log => { totalHours += parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60)); });
+    allLogs.forEach(log => { 
+        totalHours += parseFloat(calculateHoursForWeek(log.time_in, log.time_out, (log.lunch_hours || 0) * 60, log.week_label)); 
+    });
     
     let percent = 0;
     let remaining = 0;
@@ -532,6 +577,7 @@ function renderDashboard() {
                     ${week} ${isArchived ? '<span class="text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded-md">Archived</span>' : ''}
                 </h3>
                 <div class="flex items-center gap-2">
+                    <button onclick="openEditWeekModal('${week}')" class="text-sm font-medium text-indigo-500 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1 rounded-lg transition-colors">Edit Shift</button>
                     <button onclick="toggleWeekArchive('${week}')" class="text-sm font-medium ${isArchived ? 'text-blue-500 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/20' : 'text-amber-500 hover:text-amber-700 bg-amber-50 dark:bg-amber-900/20'} px-3 py-1 rounded-lg transition-colors">
                         ${isArchived ? 'Restore' : 'Archive Week'}
                     </button>
@@ -547,7 +593,7 @@ function renderDashboard() {
         
         let wTotal = 0;
         groupedLogs[week].forEach(log => {
-            const netHrs = parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60));
+            const netHrs = parseFloat(calculateHoursForWeek(log.time_in, log.time_out, (log.lunch_hours || 0) * 60, week));
             wTotal += netHrs;
             const isNa = log.time_in === "N/A";
             const hrsDisplay = isNa ? `<span class="text-slate-400 dark:text-slate-500">N/A</span>` : `<span class="font-bold text-blue-600 dark:text-blue-400">${formatHM(netHrs)}</span>`;
@@ -591,7 +637,7 @@ async function submitSingleLog() {
     await fetch('/api/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ week_label: week, date, time_in: timeIn, time_out: timeOut, lunch_hours: lunchMins/60, hours: parseFloat(calculateHours(timeIn, timeOut, lunchMins)) })
+        body: JSON.stringify({ week_label: week, date, time_in: timeIn, time_out: timeOut, lunch_hours: lunchMins/60, hours: parseFloat(calculateHoursForWeek(timeIn, timeOut, lunchMins, week)) })
     });
     toggleModal('singleLogModal');
     fetchLogs();
@@ -618,7 +664,7 @@ async function submitBatchLogs() {
             await fetch('/api/logs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ week_label: week, date: dateStr, time_in: tIn, time_out: tOut, lunch_hours: lunchMins/60, hours: parseFloat(calculateHours(tIn, tOut, lunchMins)) })
+                body: JSON.stringify({ week_label: week, date: dateStr, time_in: tIn, time_out: tOut, lunch_hours: lunchMins/60, hours: parseFloat(calculateHoursForWeek(tIn, tOut, lunchMins, week)) })
             });
         }
     }
@@ -659,7 +705,7 @@ async function submitEditLog() {
     await fetch(`/api/logs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ week_label: week, date, time_in: timeIn, time_out: timeOut, lunch_hours: lunchMins/60, hours: parseFloat(calculateHours(timeIn, timeOut, lunchMins)) })
+        body: JSON.stringify({ week_label: week, date, time_in: timeIn, time_out: timeOut, lunch_hours: lunchMins/60, hours: parseFloat(calculateHoursForWeek(timeIn, timeOut, lunchMins, week)) })
     });
     toggleModal('editLogModal');
     fetchLogs();
@@ -712,7 +758,7 @@ function executePrint() {
     const sName = document.getElementById('inputSupName').value || "Supervisor Name";
     const sTitle = document.getElementById('inputSupTitle').value || "Supervisor Title";
     
-    const iName = userProfile.name || "Intern Name";
+    const iName = userProfile.name || "Beringuela Jiro";
     const iTitle = userProfile.title || "Project Manager";
     const logoSrc = userProfile.logo_data || "";
     
@@ -761,7 +807,7 @@ function executePrint() {
                     <tbody>`;
             
             logs.forEach(log => {
-                const netHrs = parseFloat(calculateHours(log.time_in, log.time_out, (log.lunch_hours || 0) * 60));
+                const netHrs = parseFloat(calculateHoursForWeek(log.time_in, log.time_out, (log.lunch_hours || 0) * 60, week));
                 total += netHrs;
                 const isNa = log.time_in === "N/A";
                 const hrsDisplay = isNa ? "N/A" : formatHM(netHrs);
