@@ -45,6 +45,7 @@ let wholeHoursOnly = JSON.parse(localStorage.getItem('dtr_whole_hours')) || fals
 let showingArchived = false;
 let archivedWeeks = JSON.parse(localStorage.getItem('dtr_archived_weeks')) || [];
 let weekShiftOverrides = JSON.parse(localStorage.getItem('dtr_week_overrides')) || {};
+let gracePeriodMins = parseInt(localStorage.getItem('dtr_grace_period')) || 0;
 
 const defaultPHHolidays = [
     { date: "01-01", name: "New Year's Day" },
@@ -233,6 +234,8 @@ function openCalendarModal() {
     renderWorkDays();
     renderHolidays();
     toggleModal('calendarModal');
+    const graceInput = document.getElementById('gracePeriodInput');
+    if (graceInput) graceInput.value = gracePeriodMins;
 }
 
 function renderWorkDays() {
@@ -308,6 +311,10 @@ function saveCalendarSettings() {
     
     toggleModal('calendarModal');
     updateProgressTracker();
+
+    const graceInputVal = parseInt(document.getElementById('gracePeriodInput').value) || 0;
+    gracePeriodMins = graceInputVal;
+    localStorage.setItem('dtr_grace_period', JSON.stringify(gracePeriodMins));
 }
 
 // --- MODALS & LOGO ---
@@ -410,6 +417,15 @@ function calculateHoursForWeek(timeIn, timeOut, lunchMins = 0, weekLabel = "") {
     
     if (dOut < dIn) dOut.setDate(dOut.getDate() + 1);
     if (dShiftEnd < dShiftStart) dShiftEnd.setDate(dShiftEnd.getDate() + 1);
+
+    // --- GRACE PERIOD LOGIC ---
+    if (gracePeriodMins > 0 && dIn > dShiftStart) {
+        let maxGraceTime = new Date(dShiftStart.getTime() + gracePeriodMins * 60000);
+        if (dIn <= maxGraceTime) {
+            dIn = new Date(dShiftStart); // Snaps time in to official shift start
+        }
+    }
+    // --------------------------
 
     if (dIn < dShiftStart) dIn = dShiftStart;
     if (dOut > dShiftEnd) dOut = dShiftEnd;

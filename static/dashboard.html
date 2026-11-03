@@ -171,6 +171,12 @@
                 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Recognized Exceptions & Holidays</label>
                 <ul id="holidayList" class="space-y-1 text-sm max-h-40 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 p-3 rounded-xl"></ul>
             </div>
+            
+            <div class="mb-6 pt-6 border-t border-slate-100 dark:border-slate-700">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Grace Period (Minutes)</label>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Buffer time for late arrivals (e.g. 15 mins for 7:30 AM shift).</p>
+                <input type="number" id="gracePeriodInput" min="0" max="60" value="0" class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+            </div>
 
             <button onclick="saveCalendarSettings()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors mt-6 shadow-md">Save Settings</button>
         </div>
@@ -336,6 +342,6 @@
     }
 </style>
 
-<script src="/static/js/app.js?version=weekly_shift_fix"></script>
+<script src="/static/js/app.js?version=grace_period"></script>
 </body>
 </html>
