@@ -761,7 +761,11 @@ async function executeDeleteWeek() {
 function populatePrintCheckboxes() {
     const container = document.getElementById('weekCheckboxes');
     if (!container) return;
-    container.innerHTML = Object.keys(groupedLogs).sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).map(week => `
+    
+    // Filter out archived weeks so they don't show up in the print export modal
+    let activeWeekKeys = Object.keys(groupedLogs).filter(week => !archivedWeeks.includes(week));
+    
+    container.innerHTML = activeWeekKeys.sort((a,b) => a.localeCompare(b, undefined, {numeric: true})).map(week => `
         <label class="flex items-center p-2 border-b border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-white dark:hover:bg-slate-700 rounded transition-colors">
             <input type="checkbox" class="print-week-cb w-4 h-4 text-slate-800 rounded focus:ring-slate-800" value="${week}" checked>
             <span class="ml-3 text-sm font-semibold text-slate-700 dark:text-slate-300">${week}</span>
